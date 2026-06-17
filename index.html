@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>&#26495;&#26448;&#24320;&#26009;&#25490;&#29256;&#21161;&#25163; MVP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>&#26495;&#26448;&#24320;&#26009;&#25490;&#29256;&#21161;&#25163;</h1>
+        <p>&#36755;&#20837;&#26495;&#20214;&#23610;&#23544;&#65292;&#33258;&#21160;&#29983;&#25104;&#25490;&#26009;&#22270;&#12289;&#29992;&#26009;&#32479;&#35745;&#21644;&#24320;&#26009;&#21333;&#12290;</p>
+      </div>
+      <div class="header-actions">
+        <select id="sampleOrderSelect"></select>
+        <button id="loadDemoBtn" type="button">&#36733;&#20837;&#26679;&#20363;</button>
+        <button id="saveBtn" type="button">&#20445;&#23384;&#26412;&#22320;</button>
+        <button id="exportProjectBtn" type="button">&#23548;&#20986;&#39033;&#30446;</button>
+        <button id="importProjectBtn" type="button">&#23548;&#20837;&#39033;&#30446;</button>
+        <button id="printBtn" type="button">&#25171;&#21360;</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="left-workspace">
+      <section class="panel settings-panel">
+        <div class="panel-title">
+          <h2>&#35746;&#21333;&#19982;&#40664;&#35748;&#26495;&#26448;</h2>
+        </div>
+
+        <div class="preset-row">
+          <label>
+            &#26495;&#26448;&#39044;&#35774;
+            <select id="stockPresetSelect"></select>
+          </label>
+          <button id="applyStockPresetBtn" type="button">&#24212;&#29992;</button>
+          <button id="saveStockPresetBtn" type="button">&#20445;&#23384;&#20026;&#39044;&#35774;</button>
+        </div>
+
+        <div class="field-grid">
+          <label>
+            &#35746;&#21333;&#21517;&#31216;
+            <input id="orderName" type="text" value="&#34915;&#26588;&#35797;&#25490;&#35746;&#21333;" />
+          </label>
+          <label>
+            &#23458;&#25143;
+            <input id="customerName" type="text" value="&#28436;&#31034;&#23458;&#25143;" />
+          </label>
+          <label>
+            &#26495;&#26448;&#38271; mm
+            <input id="sheetLength" type="number" min="1" value="2440" />
+          </label>
+          <label>
+            &#26495;&#26448;&#23485; mm
+            <input id="sheetWidth" type="number" min="1" value="1220" />
+          </label>
+          <label>
+            &#40664;&#35748;&#26495;&#21402; mm
+            <input id="sheetThickness" type="number" min="1" value="18" />
+          </label>
+          <label>
+            &#40664;&#35748;&#26448;&#36136;
+            <select id="material"></select>
+          </label>
+          <label>
+            &#38191;&#32541; mm
+            <input id="kerf" type="number" min="0" value="4" />
+          </label>
+          <label>
+            &#36793;&#36317; mm
+            <input id="margin" type="number" min="0" value="5" />
+          </label>
+        </div>
+
+      </section>
+
+      <section class="panel history-panel">
+        <div class="panel-title">
+          <h2>&#35746;&#21333;&#21382;&#21490;</h2>
+          <button id="saveOrderHistoryBtn" type="button">&#20445;&#23384;&#24403;&#21069;&#35746;&#21333;</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+      </aside>
+
+      <section class="right-workspace">
+      <section class="panel parts-panel">
+        <div class="panel-title">
+          <h2>&#26495;&#20214;&#28165;&#21333;</h2>
+          <div class="table-tools">
+            <button id="nestBtn" class="primary" type="button">&#33258;&#21160;&#25490;&#26009;</button>
+            <button id="addPartBtn" type="button">&#26032;&#22686;&#26495;&#20214;</button>
+            <button id="clearBtn" type="button">&#28165;&#31354;</button>
+            <button id="importBtn" type="button">&#23548;&#20837; CSV</button>
+            <button id="exportBtn" type="button">&#23548;&#20986; CSV</button>
+          </div>
+        </div>
+        <div id="partsSummary" class="parts-summary"></div>
+        <div id="partsGroupLine" class="board-group-line"></div>
+        <div id="printPartsList" class="print-only print-parts-inline"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>&#21517;&#31216;</th>
+                <th>&#38271;</th>
+                <th>&#23485;</th>
+                <th>&#25968;&#37327;</th>
+                <th>&#26495;&#31867;</th>
+                <th>&#26448;&#36136;</th>
+                <th>&#21402;&#24230;</th>
+                <th>&#23553;&#36793;</th>
+                <th>&#21487;&#26059;&#36716;</th>
+                <th>&#22791;&#27880;</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="partsBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">CSV &#34920;&#22836;&#65306;&#21517;&#31216;,&#38271;&#24230;,&#23485;&#24230;,&#25968;&#37327;,&#26448;&#36136;,&#21402;&#24230;,&#23553;&#36793;,&#21487;&#26059;&#36716;,&#22791;&#27880;&#12290;&#23553;&#36793;&#21487;&#22635; F/B/L/R &#25110;&#20013;&#25991;&#26041;&#21521;&#12290;</p>
+      </section>
+
+      <section class="panel result-panel">
+        <div class="panel-title">
+          <h2>&#25490;&#26009;&#32467;&#26524; <button id="resultStatus" class="status-pill" type="button">&#24453;&#25490;&#26009;</button></h2>
+          <div class="result-tools">
+            <button id="exportCutListBtn" type="button">&#23548;&#20986;&#24320;&#26009;&#21333;</button>
+            <button id="exportLabelsBtn" type="button">&#23548;&#20986;&#26631;&#31614;</button>
+            <button id="exportReportBtn" type="button">&#23548;&#20986;&#25253;&#21578;</button>
+          </div>
+        </div>
+        <div id="stats" class="stats"></div>
+        <div id="warnings" class="warnings"></div>
+        <div id="cutList" class="cut-list"></div>
+        <div id="labelsView" class="labels-view"></div>
+      </section>
+
+      <section class="panel canvas-panel">
+        <div class="panel-title">
+          <h2>&#25490;&#26009;&#22270;</h2>
+          <div class="view-tools">
+            <button id="fullscreenLayoutBtn" type="button" title="zoom">&#25918;&#22823;</button>
+            <button id="downloadSvgBtn" type="button">&#19979;&#36733; SVG</button>
+            <button id="downloadDxfBtn" type="button">&#19979;&#36733; DXF</button>
+          </div>
+        </div>
+        <div id="sheetsView" class="sheets-view"></div>
+      </section>
+      </section>
+    </main>
+
+    <dialog id="csvDialog" class="dialog">
+      <form method="dialog">
+        <h3>&#23548;&#20837; CSV</h3>
+        <p>&#31896;&#36148; CSV &#20869;&#23481;&#65292;&#31532;&#19968;&#34892;&#21487;&#20197;&#26159;&#34920;&#22836;&#12290;</p>
+        <textarea id="csvText" rows="10"></textarea>
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">&#21462;&#28040;</button>
+          <button id="confirmImportBtn" value="default" class="primary" type="button">&#23548;&#20837;</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="projectDialog" class="dialog">
+      <form method="dialog">
+        <h3>&#23548;&#20837;&#39033;&#30446; JSON</h3>
+        <p>&#31896;&#36148;&#20174;&#26412;&#24037;&#20855;&#23548;&#20986;&#30340; JSON &#20869;&#23481;&#12290;</p>
+        <textarea id="projectText" rows="10"></textarea>
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">&#21462;&#28040;</button>
+          <button id="confirmProjectImportBtn" value="default" class="primary" type="button">&#23548;&#20837;</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="layoutDialog" class="layout-dialog">
+      <form method="dialog">
+        <div class="dialog-toolbar">
+          <h3>&#25490;&#26009;&#22270;&#25918;&#22823;&#26597;&#30475;</h3>
+          <div class="dialog-actions">
+            <button id="printLayoutDialogBtn" type="button">&#25171;&#21360;</button>
+            <button value="cancel" type="submit">&#20851;&#38381;</button>
+          </div>
+        </div>
+        <div id="layoutDialogContent" class="layout-dialog-content"></div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
