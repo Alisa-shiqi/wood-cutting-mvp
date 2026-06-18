@@ -125,6 +125,23 @@ const els = {
   sampleOrderSelect: document.getElementById("sampleOrderSelect"),
   stockPresetSelect: document.getElementById("stockPresetSelect"),
   historyList: document.getElementById("historyList"),
+  designType: document.getElementById("designType"),
+  designWidth: document.getElementById("designWidth"),
+  designHeight: document.getElementById("designHeight"),
+  designDepth: document.getElementById("designDepth"),
+  designColumns: document.getElementById("designColumns"),
+  designShelves: document.getElementById("designShelves"),
+  designDeskWidth: document.getElementById("designDeskWidth"),
+  designDeskHeight: document.getElementById("designDeskHeight"),
+  designDeskDepth: document.getElementById("designDeskDepth"),
+  designMaterial: document.getElementById("designMaterial"),
+  designThickness: document.getElementById("designThickness"),
+  designBackThickness: document.getElementById("designBackThickness"),
+  designBack: document.getElementById("designBack"),
+  designDoors: document.getElementById("designDoors"),
+  designDrawers: document.getElementById("designDrawers"),
+  designSummary: document.getElementById("designSummary"),
+  designPreview: document.getElementById("designPreview"),
   partsSummary: document.getElementById("partsSummary"),
   partsGroupLine: document.getElementById("partsGroupLine"),
   printPartsList: document.getElementById("printPartsList"),
@@ -312,6 +329,268 @@ function renderBoardParamLine() {
   return `<div class="board-param-line"><span class="board-param-chip">\u677f\u6750 ${state.sheetLength}x${state.sheetWidth}mm | \u952f\u7f1d ${state.kerf}mm | \u8fb9\u8ddd ${state.margin}mm</span></div>`;
 }
 
+function readDesignerConfig() {
+  const type = els.designType.value || "bookcase";
+  const width = Math.max(300, Math.round(toNumber(els.designWidth.value, 1800)));
+  const height = Math.max(300, Math.round(toNumber(els.designHeight.value, 2200)));
+  const depth = Math.max(120, Math.round(toNumber(els.designDepth.value, 350)));
+  const columns = Math.max(1, Math.min(8, Math.round(toNumber(els.designColumns.value, 3))));
+  const shelves = Math.max(0, Math.min(10, Math.round(toNumber(els.designShelves.value, 4))));
+  const deskWidth = Math.max(600, Math.round(toNumber(els.designDeskWidth.value, 1200)));
+  const deskHeight = Math.max(500, Math.round(toNumber(els.designDeskHeight.value, 760)));
+  const deskDepth = Math.max(300, Math.round(toNumber(els.designDeskDepth.value, 600)));
+  const material = els.designMaterial.value || state.material || text.defaultMaterial;
+  const thickness = Math.max(9, Math.round(toNumber(els.designThickness.value, state.sheetThickness || 18)));
+  const backThickness = Math.max(3, Math.round(toNumber(els.designBackThickness.value, 9)));
+  return {
+    type,
+    width,
+    height,
+    depth,
+    columns,
+    shelves,
+    deskWidth,
+    deskHeight,
+    deskDepth,
+    material,
+    thickness,
+    backThickness,
+    includeBack: els.designBack.checked,
+    includeDoors: els.designDoors.checked,
+    includeDrawers: els.designDrawers.checked,
+  };
+}
+
+function renderDesigner() {
+  if (!els.designPreview) return;
+  const currentMaterial = els.designMaterial.value || state.material || text.defaultMaterial;
+  els.designMaterial.innerHTML = materialOptions(currentMaterial);
+  els.designMaterial.value = currentMaterial;
+  const config = readDesignerConfig();
+  const parts = generateDesignParts(config);
+  const totalPieces = parts.reduce((sum, item) => sum + item.quantity, 0);
+  const area = parts.reduce((sum, item) => sum + item.length * item.width * item.quantity, 0);
+  const mainPieces = parts.filter((item) => item.thickness === config.thickness).reduce((sum, item) => sum + item.quantity, 0);
+  els.designSummary.innerHTML = `
+    <span>\u6a21\u5757 ${designTypeName(config.type)}</span>
+    <span>\u677f\u4ef6 ${totalPieces}\u4ef6</span>
+    <span>\u4e3b\u677f ${mainPieces}\u4ef6</span>
+    <span>\u7406\u8bba ${areaText(area)}</span>
+  `;
+  els.designPreview.innerHTML = renderDesignPreview(config);
+}
+
+function designTypeName(type) {
+  const map = {
+    bookcase: "\u200e\u4e66\u67dc",
+    desk: "\u4e66\u684c",
+    combo: "\u4e66\u67dc+\u4e66\u684c",
+  };
+  return map[type] || map.bookcase;
+}
+
+function applyDesignToParts() {
+  readSettings();
+  const config = readDesignerConfig();
+  const parts = generateDesignParts(config).map(normalizePart);
+  if (!parts.length) return;
+  state.orderName = `${designTypeName(config.type)}-${config.width}x${config.height}`;
+  state.material = config.material;
+  state.sheetThickness = config.thickness;
+  state.parts = parts;
+  state.result = null;
+  runNesting();
+}
+
+function generateDesignParts(config) {
+  if (config.type === "desk") return generateDeskParts(config, "\u4e66\u684c");
+  if (config.type === "combo") return generateComboParts(config);
+  return generateBookcaseParts(config, "\u4e66\u67dc");
+}
+
+function generateBookcaseParts(config, prefix, overrides = {}) {
+  const width = Math.max(300, Math.round(overrides.width || config.width));
+  const height = Math.max(300, Math.round(overrides.height || config.height));
+  const depth = Math.max(120, Math.round(overrides.depth || config.depth));
+  const columns = Math.max(1, Math.round(overrides.columns || config.columns));
+  const shelves = Math.max(0, Math.round(overrides.shelves ?? config.shelves));
+  const material = overrides.material || config.material;
+  const thickness = Math.max(1, Math.round(overrides.thickness || config.thickness));
+  const backThickness = Math.max(1, Math.round(overrides.backThickness || config.backThickness));
+  const clearWidth = Math.max(80, width - thickness * (columns + 1));
+  const columnWidth = Math.max(80, Math.floor(clearWidth / columns));
+  const shelfDepth = Math.max(80, depth - 20);
+  const parts = [
+    part(`${prefix}-\u5de6\u4fa7\u677f`, height, depth, 1, material, thickness, false, "F,B", "\u7eb9\u7406\u7ad6\u5411"),
+    part(`${prefix}-\u53f3\u4fa7\u677f`, height, depth, 1, material, thickness, false, "F,B", "\u7eb9\u7406\u7ad6\u5411"),
+    part(`${prefix}-\u9876\u677f`, width, depth, 1, material, thickness, true, "F", ""),
+    part(`${prefix}-\u5e95\u677f`, width, depth, 1, material, thickness, true, "F", ""),
+  ];
+  if (columns > 1) {
+    parts.push(part(`${prefix}-\u4e2d\u7acb\u677f`, height, depth, columns - 1, material, thickness, false, "F,B", "\u7eb9\u7406\u7ad6\u5411"));
+  }
+  if (shelves > 0) {
+    parts.push(part(`${prefix}-\u5c42\u677f`, columnWidth, shelfDepth, columns * shelves, material, thickness, true, "F", ""));
+  }
+  if (config.includeBack) {
+    parts.push(part(`${prefix}-\u80cc\u677f`, height, width, 1, "\u80cc\u677f", backThickness, false, "", "\u53ef\u6839\u636e\u5b9e\u9645\u5206\u5757"));
+  }
+  if (config.includeDoors) {
+    const doorHeight = Math.max(260, Math.floor((height - thickness * 2) * 0.48));
+    const doorWidth = Math.max(120, Math.floor((width - 6) / 2));
+    parts.push(part(`${prefix}-\u4e0b\u95e8\u677f`, doorHeight, doorWidth, 2, material, thickness, false, "F,B,L,R", "\u95e8\u7f1d\u9700\u73b0\u573a\u590d\u6838"));
+  }
+  if (config.includeDrawers) {
+    parts.push(...generateDrawerParts(config, prefix, columnWidth, shelfDepth));
+  }
+  return parts;
+}
+
+function generateDeskParts(config, prefix, overrides = {}) {
+  const width = Math.max(600, Math.round(overrides.width || config.deskWidth || config.width));
+  const height = Math.max(500, Math.round(overrides.height || config.deskHeight));
+  const depth = Math.max(300, Math.round(overrides.depth || config.deskDepth || config.depth));
+  const material = overrides.material || config.material;
+  const thickness = Math.max(1, Math.round(overrides.thickness || config.thickness));
+  const parts = [
+    part(`${prefix}-\u684c\u9762`, width, depth, 1, material, thickness, true, "F,B,L,R", ""),
+    part(`${prefix}-\u5de6\u4fa7\u677f`, height - thickness, depth, 1, material, thickness, false, "F", ""),
+    part(`${prefix}-\u53f3\u4fa7\u677f`, height - thickness, depth, 1, material, thickness, false, "F", ""),
+    part(`${prefix}-\u540e\u6321\u677f`, Math.max(120, width - thickness * 2), 260, 1, material, thickness, true, "F", "\u589e\u52a0\u684c\u4f53\u7a33\u5b9a"),
+  ];
+  if (config.includeDrawers) {
+    parts.push(...generateDrawerParts(config, prefix, Math.min(420, width - thickness * 2), Math.max(260, depth - 80)));
+  }
+  return parts;
+}
+
+function generateComboParts(config) {
+  const sideWidth = Math.max(360, Math.floor((config.width - config.deskWidth) / 2));
+  const deskWidth = Math.max(600, Math.min(config.deskWidth, config.width - sideWidth));
+  const parts = [
+    ...generateBookcaseParts(config, "\u5de6\u4e66\u67dc", { width: sideWidth, columns: 1, shelves: config.shelves }),
+    ...generateDeskParts(config, "\u4e2d\u95f4\u4e66\u684c", { width: deskWidth, height: config.deskHeight, depth: config.deskDepth }),
+  ];
+  if (config.width - sideWidth - deskWidth >= 300) {
+    parts.push(...generateBookcaseParts(config, "\u53f3\u4e66\u67dc", { width: config.width - sideWidth - deskWidth, columns: 1, shelves: config.shelves }));
+  }
+  return parts;
+}
+
+function generateDrawerParts(config, prefix, boxWidth, boxDepth) {
+  const material = config.material;
+  const thickness = config.thickness;
+  const drawerWidth = Math.max(260, Math.floor(boxWidth));
+  const drawerDepth = Math.max(220, Math.floor(boxDepth - 40));
+  const drawerHeight = 160;
+  return [
+    part(`${prefix}-\u62bd\u5c49\u9762\u677f`, drawerWidth, 180, 2, material, thickness, true, "F,B,L,R", ""),
+    part(`${prefix}-\u62bd\u5c49\u4fa7\u677f`, drawerDepth, drawerHeight, 4, material, thickness, true, "F", ""),
+    part(`${prefix}-\u62bd\u5c49\u524d\u540e\u677f`, Math.max(180, drawerWidth - thickness * 2), drawerHeight, 4, material, thickness, true, "F", ""),
+    part(`${prefix}-\u62bd\u5c49\u5e95\u677f`, Math.max(180, drawerWidth - thickness * 2), drawerDepth, 2, "\u80cc\u677f", Math.min(9, config.backThickness), true, "", ""),
+  ];
+}
+
+function renderDesignPreview(config) {
+  const pad = 28;
+  const viewWidth = 540;
+  const viewHeight = 260;
+  const scale = Math.min((viewWidth - pad * 2) / Math.max(config.width, config.deskWidth), (viewHeight - pad * 2) / Math.max(config.height, config.deskHeight));
+  const w = Math.max(1, Math.round(config.width * scale));
+  const h = Math.max(1, Math.round(config.height * scale));
+  const x = Math.round((viewWidth - w) / 2);
+  const y = Math.round((viewHeight - h) / 2);
+  const color = "#246bfe";
+  const line = "#647084";
+  const fills = {
+    body: "#e8f0ff",
+    desk: "#e9f8f0",
+    back: "#f7efe4",
+    door: "#fff7db",
+    drawer: "#fce7f3",
+  };
+  const content = config.type === "desk"
+    ? previewDesk(config, x, y, scale, fills, line)
+    : config.type === "combo"
+      ? previewCombo(config, x, y, scale, fills, line)
+      : previewBookcase(config, x, y, w, h, scale, fills, line);
+  return `
+    <svg viewBox="0 0 ${viewWidth} ${viewHeight}" role="img" aria-label="design preview">
+      <rect x="0" y="0" width="${viewWidth}" height="${viewHeight}" fill="#f8fafc" />
+      ${content}
+      <text x="${pad}" y="${viewHeight - 12}" font-size="12" fill="${line}">${escapeHtml(designTypeName(config.type))} ${config.width}x${config.height}x${config.depth}mm</text>
+      <text x="${viewWidth - pad}" y="${viewHeight - 12}" font-size="12" text-anchor="end" fill="${color}">${escapeHtml(config.material)} ${config.thickness}mm</text>
+    </svg>
+  `;
+}
+
+function previewBookcase(config, x, y, w, h, scale, fills, line) {
+  const t = Math.max(3, config.thickness * scale);
+  const colW = (w - t * (config.columns + 1)) / config.columns;
+  const shelfGap = (h - t * 2) / (config.shelves + 1);
+  let lines = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${fills.body}" stroke="${line}" stroke-width="2" />`;
+  for (let i = 1; i < config.columns; i += 1) {
+    const vx = x + t + i * colW + (i - 1) * t;
+    lines += `<rect x="${vx}" y="${y}" width="${t}" height="${h}" fill="#fff" stroke="${line}" stroke-width="1" />`;
+  }
+  for (let row = 1; row <= config.shelves; row += 1) {
+    const sy = y + t + row * shelfGap;
+    lines += `<rect x="${x}" y="${sy}" width="${w}" height="${t}" fill="#fff" stroke="${line}" stroke-width="1" />`;
+  }
+  if (config.includeDoors) {
+    lines += `<rect x="${x + t}" y="${y + h * 0.52}" width="${(w - t * 2) / 2}" height="${h * 0.42}" fill="${fills.door}" stroke="${line}" stroke-width="1" />`;
+    lines += `<rect x="${x + w / 2}" y="${y + h * 0.52}" width="${(w - t * 2) / 2}" height="${h * 0.42}" fill="${fills.door}" stroke="${line}" stroke-width="1" />`;
+  }
+  if (config.includeDrawers) {
+    lines += `<rect x="${x + t + 6}" y="${y + h - h * 0.2}" width="${Math.max(36, colW - 12)}" height="${h * 0.08}" fill="${fills.drawer}" stroke="${line}" />`;
+    lines += `<rect x="${x + t + 6}" y="${y + h - h * 0.1}" width="${Math.max(36, colW - 12)}" height="${h * 0.08}" fill="${fills.drawer}" stroke="${line}" />`;
+  }
+  return lines;
+}
+
+function previewDesk(config, x, y, scale, fills, line) {
+  const w = Math.max(1, Math.round(config.deskWidth * scale));
+  const h = Math.max(1, Math.round(config.deskHeight * scale));
+  const d = Math.max(18, Math.round(config.deskDepth * scale * 0.18));
+  const t = Math.max(4, config.thickness * scale);
+  const dx = Math.round((540 - w) / 2);
+  const dy = y + Math.max(0, Math.round((config.height * scale - h) * 0.7));
+  let lines = `<rect x="${dx}" y="${dy}" width="${w}" height="${h}" fill="none" stroke="${line}" stroke-width="2" />`;
+  lines += `<rect x="${dx}" y="${dy}" width="${w}" height="${t}" fill="${fills.desk}" stroke="${line}" />`;
+  lines += `<rect x="${dx}" y="${dy + t}" width="${t}" height="${h - t}" fill="${fills.desk}" stroke="${line}" />`;
+  lines += `<rect x="${dx + w - t}" y="${dy + t}" width="${t}" height="${h - t}" fill="${fills.desk}" stroke="${line}" />`;
+  lines += `<rect x="${dx + t}" y="${dy + h * 0.38}" width="${w - t * 2}" height="${d}" fill="${fills.desk}" stroke="${line}" />`;
+  if (config.includeDrawers) {
+    lines += `<rect x="${dx + t + 10}" y="${dy + t + 18}" width="${Math.min(130, w * 0.35)}" height="28" fill="${fills.drawer}" stroke="${line}" />`;
+    lines += `<rect x="${dx + t + 10}" y="${dy + t + 52}" width="${Math.min(130, w * 0.35)}" height="28" fill="${fills.drawer}" stroke="${line}" />`;
+  }
+  return lines;
+}
+
+function previewCombo(config, x, y, scale, fills, line) {
+  const sideWidth = Math.max(360, Math.floor((config.width - config.deskWidth) / 2));
+  const deskWidth = Math.max(600, Math.min(config.deskWidth, config.width - sideWidth));
+  const leftW = Math.max(1, Math.round(sideWidth * scale));
+  const deskW = Math.max(1, Math.round(deskWidth * scale));
+  const rightW = Math.max(0, Math.round((config.width - sideWidth - deskWidth) * scale));
+  const h = Math.max(1, Math.round(config.height * scale));
+  const deskH = Math.max(1, Math.round(config.deskHeight * scale));
+  const deskY = y + h - deskH;
+  const t = Math.max(4, config.thickness * scale);
+  const left = previewBookcase({ ...config, width: sideWidth, columns: 1 }, x, y, leftW, h, scale, fills, line);
+  let desk = `<rect x="${x + leftW}" y="${deskY}" width="${deskW}" height="${deskH}" fill="none" stroke="${line}" stroke-width="2" />`;
+  desk += `<rect x="${x + leftW}" y="${deskY}" width="${deskW}" height="${t}" fill="${fills.desk}" stroke="${line}" />`;
+  desk += `<rect x="${x + leftW}" y="${deskY + t}" width="${t}" height="${deskH - t}" fill="${fills.desk}" stroke="${line}" />`;
+  desk += `<rect x="${x + leftW + deskW - t}" y="${deskY + t}" width="${t}" height="${deskH - t}" fill="${fills.desk}" stroke="${line}" />`;
+  desk += `<rect x="${x + leftW + t}" y="${deskY + deskH * 0.38}" width="${deskW - t * 2}" height="${Math.max(16, config.deskDepth * scale * 0.16)}" fill="${fills.desk}" stroke="${line}" />`;
+  if (config.includeDrawers) {
+    desk += `<rect x="${x + leftW + t + 8}" y="${deskY + t + 16}" width="${Math.min(120, deskW * 0.36)}" height="24" fill="${fills.drawer}" stroke="${line}" />`;
+    desk += `<rect x="${x + leftW + t + 8}" y="${deskY + t + 46}" width="${Math.min(120, deskW * 0.36)}" height="24" fill="${fills.drawer}" stroke="${line}" />`;
+  }
+  const right = rightW > 0 ? previewBookcase({ ...config, width: config.width - sideWidth - deskWidth, columns: 1 }, x + leftW + deskW, y, rightW, h, scale, fills, line) : "";
+  return `${left}${desk}${right}`;
+}
+
 function renderPrintPartsList() {
   if (!els.printPartsList) return;
   els.printPartsList.innerHTML = renderPrintablePartsList();
@@ -345,6 +624,7 @@ function bindEvents() {
   document.getElementById("applyStockPresetBtn").addEventListener("click", applySelectedStockPreset);
   document.getElementById("saveStockPresetBtn").addEventListener("click", saveCurrentStockPreset);
   document.getElementById("saveOrderHistoryBtn").addEventListener("click", saveCurrentOrderHistory);
+  document.getElementById("generateDesignBtn").addEventListener("click", applyDesignToParts);
   document.getElementById("exportBtn").addEventListener("click", exportCsv);
   document.getElementById("importBtn").addEventListener("click", openImportDialog);
   document.getElementById("exportCutListBtn").addEventListener("click", exportCutListCsv);
@@ -366,9 +646,35 @@ function bindEvents() {
   els.sheetsView.addEventListener("mousemove", positionSheetHoverPreview);
   els.sheetsView.addEventListener("mouseleave", clearSheetHoverPreview);
 
+  [
+    els.designType,
+    els.designWidth,
+    els.designHeight,
+    els.designDepth,
+    els.designColumns,
+    els.designShelves,
+    els.designDeskWidth,
+    els.designDeskHeight,
+    els.designDeskDepth,
+    els.designMaterial,
+    els.designThickness,
+    els.designBackThickness,
+    els.designBack,
+    els.designDoors,
+    els.designDrawers,
+  ].forEach((input) => {
+    input.addEventListener("input", renderDesigner);
+    input.addEventListener("change", renderDesigner);
+  });
+
   [els.sheetLength, els.sheetWidth, els.sheetThickness, els.material, els.margin].forEach((input) => {
     input.addEventListener("input", () => {
       readSettings();
+      if (input === els.material || input === els.sheetThickness) {
+        els.designMaterial.value = state.material;
+        els.designThickness.value = state.sheetThickness;
+        renderDesigner();
+      }
       markResultDirty();
       renderPartsSummary();
     });
@@ -744,6 +1050,7 @@ function renderAll() {
   renderSampleOrders();
   renderStockPresets();
   renderOrderHistory();
+  renderDesigner();
   renderParts();
   renderResult();
 }

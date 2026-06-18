@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-06-18 modular bookcase and desk designer
+
+Workflow progress:
+
+- Added a modular design panel for bookcases, desks, and bookcase-plus-desk combinations.
+- Added configurable dimensions, material, thickness, back panel, doors, shelves, and drawer options.
+- Added a live 2D design preview and generated-part summary.
+- Added one-click generation from design parameters into the existing part list and nesting workflow.
+- Ignored the local GitHub CLI helper directory with `.gitignore`.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Mock DOM flow: initialize app, generate combo design parts, run nesting, and confirm preview output.
+
 ## 2026-06-18 responsive preview and print result serials
 
 Workflow progress:

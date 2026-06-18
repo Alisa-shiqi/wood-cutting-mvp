@@ -140,6 +140,7 @@ button.primary:hover {
 }
 
 .settings-panel,
+.designer-panel,
 .history-panel,
 .parts-panel,
 .result-panel,
@@ -148,6 +149,11 @@ button.primary:hover {
 }
 
 .settings-panel {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.designer-panel {
   flex: 0 0 auto;
   overflow: visible;
 }
@@ -252,8 +258,17 @@ label {
   white-space: nowrap;
 }
 
+.designer-panel label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .settings-panel label input,
-.settings-panel label select {
+.settings-panel label select,
+.designer-panel label input,
+.designer-panel label select {
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -296,6 +311,72 @@ textarea:focus {
 
 .actions-row {
   margin-top: 10px;
+}
+
+.designer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.designer-grid label:nth-child(1),
+.designer-grid label:nth-child(10) {
+  grid-column: span 2;
+}
+
+.designer-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 10px 0;
+}
+
+.designer-options label {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.designer-options input {
+  width: 16px;
+  height: 16px;
+}
+
+.designer-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.designer-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfcfe;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.designer-preview {
+  min-height: 150px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.designer-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.designer-preview text {
+  font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
 }
 
 .table-wrap {
@@ -995,6 +1076,7 @@ td .check-cell {
   }
 
   .settings-panel,
+  .designer-panel,
   .history-panel,
   .parts-panel,
   .result-panel,
@@ -1018,6 +1100,10 @@ td .check-cell {
 
   .preset-row {
     grid-template-columns: 1fr;
+  }
+
+  .designer-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
   .stats {
@@ -1067,6 +1153,7 @@ td .check-cell {
   .app-header,
   .history-panel,
   .settings-panel,
+  .designer-panel,
   .sheet-hover-preview,
   .result-panel button,
   .view-tools,

@@ -4,11 +4,18 @@ This is a pure frontend MVP for validating the workflow:
 
 Part list input/import -> automatic nesting -> cutting layout -> cut list export.
 
+The latest iteration also supports a modular furniture-design flow:
+
+Module design -> generated parts -> automatic nesting -> printable production output.
+
 The UI renders Chinese labels in the browser, while source files are kept encoding-safe for Windows tooling.
 
 ## Current Features
 
 - Order and default stock panel settings
+- Modular bookcase, desk, and bookcase-plus-desk designer
+- 2D design preview with generated part summary
+- One-click generated parts and nesting from design parameters
 - Part list create/edit/delete
 - Full-width part list workspace with live list summary
 - Left-side order history with right-side ordered production workspace
