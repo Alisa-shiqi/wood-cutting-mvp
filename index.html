@@ -13,20 +13,43 @@
         <p>&#36755;&#20837;&#26495;&#20214;&#23610;&#23544;&#65292;&#33258;&#21160;&#29983;&#25104;&#25490;&#26009;&#22270;&#12289;&#29992;&#26009;&#32479;&#35745;&#21644;&#24320;&#26009;&#21333;&#12290;</p>
       </div>
       <div class="header-actions">
-        <select id="sampleOrderSelect"></select>
-        <button id="loadDemoBtn" type="button">&#36733;&#20837;&#26679;&#20363;</button>
-        <button id="saveBtn" type="button">&#20445;&#23384;&#26412;&#22320;</button>
-        <button id="exportProjectBtn" type="button">&#23548;&#20986;&#39033;&#30446;</button>
-        <button id="importProjectBtn" type="button">&#23548;&#20837;&#39033;&#30446;</button>
+        <div class="mode-switch" aria-label="workflow mode">
+          <button id="quickModeBtn" class="mode-btn is-active" type="button" data-mode="quick">&#24555;&#36895;&#24320;&#26009;</button>
+          <button id="designModeBtn" class="mode-btn" type="button" data-mode="design">&#35774;&#35745;&#29983;&#25104;</button>
+          <button id="proModeBtn" class="mode-btn" type="button" data-mode="pro">&#19987;&#19994;&#27169;&#24335;</button>
+        </div>
+        <button id="quickStudyComboBtn" class="primary" type="button">&#24555;&#36895;&#35797;&#29992;&#24320;&#26009;&#26679;&#20363;</button>
+        <select id="sampleOrderSelect" class="utility-action"></select>
+        <button id="loadDemoBtn" class="utility-action" type="button">&#36733;&#20837;&#26679;&#20363;</button>
+        <button id="saveBtn" class="utility-action" type="button">&#20445;&#23384;&#26412;&#22320;</button>
+        <button id="exportProjectBtn" class="utility-action" type="button">&#23548;&#20986;&#39033;&#30446;</button>
+        <button id="importProjectBtn" class="utility-action" type="button">&#23548;&#20837;&#39033;&#30446;</button>
         <button id="printBtn" type="button">&#25171;&#21360;</button>
       </div>
     </header>
+
+    <section class="trial-strip">
+      <div class="trial-flow">
+        <div class="trial-steps">
+          <span><b>1</b>&#36873;&#27169;&#26495;</span>
+          <span><b>2</b>&#29983;&#25104;&#26495;&#20214;</span>
+          <span><b>3</b>&#33258;&#21160;&#25490;&#26009;</span>
+          <span><b>4</b>&#25171;&#21360;&#25253;&#20215;</span>
+        </div>
+      </div>
+      <div id="modeHint" class="mode-hint">&#36866;&#21512;&#26377;&#26495;&#20214;&#23610;&#23544;&#30340;&#24320;&#26009;&#22330;&#26223;&#65306;&#24405;&#20837;&#26495;&#20214;&#12289;&#25253;&#20215;&#12289;&#25490;&#26009;&#12289;&#25171;&#21360;&#29983;&#20135;&#21333;&#12290;</div>
+      <button id="quickQuoteBtn" class="utility-action" type="button">&#29983;&#25104;&#25253;&#20215;&#21333;</button>
+    </section>
 
     <main class="layout">
       <aside class="left-workspace">
       <section class="panel settings-panel">
         <div class="panel-title">
-          <h2>&#35746;&#21333;&#19982;&#40664;&#35748;&#26495;&#26448;</h2>
+          <h2>
+            <span class="title-full">&#35746;&#21333;&#19982;&#40664;&#35748;&#26495;&#26448;</span>
+            <span class="title-simple">&#40664;&#35748;&#26495;&#26448;</span>
+          </h2>
+          <button id="applyStockPresetBtn" type="button">&#24212;&#29992;</button>
         </div>
 
         <div class="preset-row">
@@ -34,7 +57,6 @@
             &#26495;&#26448;&#39044;&#35774;
             <select id="stockPresetSelect"></select>
           </label>
-          <button id="applyStockPresetBtn" type="button">&#24212;&#29992;</button>
           <button id="saveStockPresetBtn" type="button">&#20445;&#23384;&#20026;&#39044;&#35774;</button>
         </div>
 
@@ -46,6 +68,20 @@
           <label>
             &#23458;&#25143;
             <input id="customerName" type="text" value="&#28436;&#31034;&#23458;&#25143;" />
+          </label>
+          <label>
+            &#35746;&#21333;&#29366;&#24577;
+            <select id="orderStatus">
+              <option value="quote">&#24453;&#25253;&#20215;</option>
+              <option value="quoted">&#24050;&#25253;&#20215;</option>
+              <option value="nesting">&#24050;&#25490;&#26009;</option>
+              <option value="production">&#29983;&#20135;&#20013;</option>
+              <option value="done">&#24050;&#23436;&#25104;</option>
+            </select>
+          </label>
+          <label>
+            &#20132;&#20184;&#26085;&#26399;
+            <input id="orderDueDate" type="date" />
           </label>
           <label>
             &#26495;&#26448;&#38271; mm
@@ -133,20 +169,90 @@
             &#32972;&#26495;&#21402; mm
             <input id="designBackThickness" type="number" min="3" value="9" />
           </label>
+          <label>
+            &#38376;&#26495;&#26041;&#24335;
+            <select id="designDoorMode">
+              <option value="none">&#26080;&#38376;&#26495;</option>
+              <option value="lower">&#19979;&#21322;&#38376;&#26495;</option>
+              <option value="full">&#20840;&#39640;&#38376;&#26495;</option>
+            </select>
+          </label>
+          <label>
+            &#25277;&#23625;&#25968;
+            <input id="designDrawerCount" type="number" min="0" max="4" value="0" />
+          </label>
         </div>
         <div class="designer-options">
           <label><input id="designBack" type="checkbox" checked /> &#24102;&#32972;&#26495;</label>
-          <label><input id="designDoors" type="checkbox" /> &#19979;&#21322;&#38376;&#26495;</label>
           <label><input id="designDrawers" type="checkbox" /> &#26700;&#19979;&#25277;&#23625;</label>
         </div>
         <div id="designSummary" class="designer-summary"></div>
+        <div id="designDetails" class="designer-details"></div>
         <div id="designPreview" class="designer-preview"></div>
+      </section>
+
+      <section class="panel quote-panel">
+        <div class="panel-title">
+          <h2>&#25253;&#20215;&#24555;&#31639;</h2>
+          <button id="applyQuotePresetBtn" type="button">&#22871;&#29992;</button>
+        </div>
+        <div class="quote-preset-row">
+          <label>
+            &#20215;&#26684;&#26041;&#26696;
+            <select id="quotePresetSelect"></select>
+          </label>
+        </div>
+        <div id="quotePriceHint" class="quote-price-hint"></div>
+        <div class="quote-grid">
+          <label>
+            &#20027;&#26495; &#20803;/&#24352;
+            <input id="mainBoardPrice" type="number" min="0" value="180" />
+          </label>
+          <label>
+            &#32972;&#26495; &#20803;/&#24352;
+            <input id="backBoardPrice" type="number" min="0" value="80" />
+          </label>
+          <label>
+            &#23553;&#36793; &#20803;/m
+            <input id="edgePrice" type="number" min="0" step="0.1" value="1.8" />
+          </label>
+          <label>
+            &#21152;&#24037;&#36153; &#20803;/&#20214;
+            <input id="laborPrice" type="number" min="0" step="0.1" value="3" />
+          </label>
+          <label>
+            &#25439;&#32791;&#29575; %
+            <input id="wasteRate" type="number" min="0" value="8" />
+          </label>
+          <label>
+            &#21033;&#28070;&#29575; %
+            <input id="profitRate" type="number" min="0" value="25" />
+          </label>
+        </div>
+        <div id="quoteSummary" class="quote-summary"></div>
       </section>
 
       <section class="panel history-panel">
         <div class="panel-title">
-          <h2>&#35746;&#21333;&#21382;&#21490;</h2>
+          <h2>
+            <span class="history-title-quick">&#24320;&#26009;&#21382;&#21490;</span>
+            <span class="history-title-design">&#35774;&#35745;&#21382;&#21490;</span>
+            <span class="history-title-pro">&#35746;&#21333;&#21382;&#21490;</span>
+          </h2>
           <button id="saveOrderHistoryBtn" type="button">&#20445;&#23384;&#24403;&#21069;&#35746;&#21333;</button>
+        </div>
+        <div id="orderDashboard" class="order-dashboard"></div>
+        <div class="history-filters">
+          <input id="orderHistorySearch" type="search" placeholder="&#25628;&#32034;&#35746;&#21333;/&#23458;&#25143;" />
+          <select id="orderHistoryStatusFilter">
+            <option value="all">&#20840;&#37096;&#29366;&#24577;</option>
+            <option value="quote">&#24453;&#25253;&#20215;</option>
+            <option value="quoted">&#24050;&#25253;&#20215;</option>
+            <option value="nesting">&#24050;&#25490;&#26009;</option>
+            <option value="production">&#29983;&#20135;&#20013;</option>
+            <option value="done">&#24050;&#23436;&#25104;</option>
+          </select>
+          <label class="history-check"><input id="orderHistoryDueFilter" type="checkbox" /> &#21482;&#30475;&#20020;&#26399;</label>
         </div>
         <div id="historyList" class="history-list"></div>
       </section>
@@ -201,6 +307,26 @@
         </div>
         <div id="stats" class="stats"></div>
         <div id="warnings" class="warnings"></div>
+        <div class="quote-sheet-block">
+          <div class="quote-sheet-head">
+            <h3>&#23458;&#25143;&#25253;&#20215;&#21333;</h3>
+            <div class="quote-sheet-actions">
+              <button id="printQuoteBtn" type="button">&#25171;&#21360;&#25253;&#20215;&#21333;</button>
+              <button id="exportQuoteBtn" type="button">&#23548;&#20986;&#25253;&#20215;&#21333;</button>
+            </div>
+          </div>
+          <div id="quoteSheetView" class="quote-sheet-view"></div>
+        </div>
+        <div class="production-sheet-block">
+          <div class="quote-sheet-head">
+            <h3>&#29983;&#20135;&#24037;&#21333;</h3>
+            <div class="quote-sheet-actions">
+              <button id="printProductionBtn" type="button">&#25171;&#21360;&#29983;&#20135;&#24037;&#21333;</button>
+              <button id="exportProductionBtn" type="button">&#23548;&#20986;&#29983;&#20135;&#24037;&#21333;</button>
+            </div>
+          </div>
+          <div id="productionSheetView" class="production-sheet-view"></div>
+        </div>
         <div id="cutList" class="cut-list"></div>
         <div id="labelsView" class="labels-view"></div>
       </section>

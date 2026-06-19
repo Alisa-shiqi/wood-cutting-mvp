@@ -13,9 +13,17 @@ The UI renders Chinese labels in the browser, while source files are kept encodi
 ## Current Features
 
 - Order and default stock panel settings
+- Order status, due-date tracking, and saved-order dashboard
+- Saved-order search, status filtering, due-attention filtering, and inline status updates
+- Guided trial workflow for template, generated parts, nesting, and quote output
+- Material price preset library for faster quote setup
 - Modular bookcase, desk, and bookcase-plus-desk designer
 - 2D design preview with generated part summary
+- Design templates for study-desk combinations, open bookcases, and drawer desks
+- Door mode, drawer count, design detail, and dimension-marked previews
 - One-click generated parts and nesting from design parameters
+- Customer quote sheet preview, print, and HTML export
+- Production work order preview, print, and HTML export
 - Part list create/edit/delete
 - Full-width part list workspace with live list summary
 - Left-side order history with right-side ordered production workspace
@@ -51,6 +59,7 @@ The UI renders Chinese labels in the browser, while source files are kept encodi
 - Project JSON export/import
 - Stock panel presets
 - Local order history
+- Quote amount, status, and delivery context saved with order history
 - Basic DXF layout export
 - Printable HTML report export
 - Sample order library
@@ -70,6 +79,9 @@ No build step, server, database, or npm install is required.
 - `TRIAL_SCORECARD.md`: quantitative comparison template for real-order trials.
 - `FEEDBACK_FORM.md`: short feedback form for workers or shop owners.
 - `LOCAL_TRIAL_GUIDE.md`: local offline trial, backup, and troubleshooting guide.
+- `BUSINESS_PLAN_2026.md`: current market research, business positioning, pricing hypothesis, GTM plan, risks, and roadmap.
+- `GROWTH_PLAN_2026.md`: TO B / TO C acquisition paths, revenue strategy, product packaging, and 30-day execution plan.
+- `EXECUTION_TASKS_2026.md`: phased implementation tasks from trial tool to pilot acquisition.
 
 ## Product Boundary
 

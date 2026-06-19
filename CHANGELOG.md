@@ -1,5 +1,216 @@
 # Changelog
 
+## 2026-06-19 local execution plan and price library iteration
+
+Workflow progress:
+
+- Added `EXECUTION_TASKS_2026.md` with phased tasks for trial usability, revenue-critical features, and pilot acquisition.
+- Added material price preset library to quote quick-calc.
+- Added quote price scheme selector and one-click apply action.
+- Added recommended price hint based on current default stock material/thickness.
+- Quote presets now set main board, back board, edge banding, labor, waste, and profit parameters.
+- Quick/design quote panels now hide price schemes, waste rate, and profit rate to keep beginner workflows simple.
+- Professional quote preset apply action now sits in the quote panel title bar, and the preset dropdown is constrained to its container.
+- Design template button text shortened to `Apply`.
+- Cutting/design history names now use default material, default thickness, part count, and a non-repeating serial; simple histories show only the generated name.
+- Cutting/design history names now follow the compact format like `18mm11件001` with a three-digit serial and no separators.
+- Cutting/design history cards use a denser list layout so more records fit in the left history panel.
+- The design quick action is now `快速使用书桌组合`; the professional demo action is now `快速载入完整案例`.
+- Removed the visible design template selector/apply row from module design while keeping quick desk-combo generation available from the header action.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Local static HTTP smoke test confirms quote preset controls render.
+- Static document checks confirm execution plan and README references.
+- Mock DOM flow: render quote presets, apply plywood price scheme, update quote inputs, and refresh quote summary.
+- Mock DOM flow: quick/design histories use material-thickness-count-serial naming, render only the generated name, and professional price preset still applies correctly.
+
+## 2026-06-19 local mobile and growth iteration
+
+Workflow progress:
+
+- Added `GROWTH_PLAN_2026.md` with TO B / TO C acquisition, revenue strategy, packaging, and 30-day execution plan.
+- Improved mobile layout to use full-page document scrolling instead of nested panel scrolling.
+- Changed mobile forms to single-column layout for better select/input usability.
+- Set mobile input/select font size to 16px to reduce browser zoom and tap issues.
+- Changed mobile right workspace to block flow so modules render completely.
+- Added horizontal scrolling only to data-heavy areas such as tables, quote sheets, production sheets, and layouts.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Local static HTTP smoke test confirms the main page renders key controls.
+- Static CSS checks confirm mobile full-page scroll, single-column forms, 16px controls, and local horizontal scrolling rules exist.
+- In-app browser mobile verification was attempted but blocked by the Windows sandbox process launcher.
+
+## 2026-06-19 local role-based workspace iteration
+
+Workflow progress:
+
+- Added role-based workspace modes: quick cutting, design generation, and professional mode.
+- Added a header mode switch with persisted local preference.
+- Added contextual mode guidance text below the header.
+- Quick cutting hides the module designer for users who already have part dimensions.
+- Design generation hides the default-stock order panel and highlights the module designer.
+- Professional mode keeps the full workstation visible for experienced users.
+- Quick-start design action now switches into design generation mode automatically.
+- Moved the mode switch into the workflow strip near the numbered steps.
+- Simplified quick/design modes by hiding order dashboards, history filters, customer quote document, and production work order.
+- Quick/design history now shows recent orders with readonly status badges, while professional mode keeps status editing and filters.
+- Quick cutting mode now renames the order/default-stock module to default stock, hides order/customer/status/due-date fields, hides save-as-preset, and keeps apply preset inline with the stock preset selector.
+- Quote calculator labels now use shorter main board, back board, and edge banding wording.
+- History title changes by mode: cutting history, design history, or order history.
+- Stock preset apply action now sits on the same row as the stock preset selector on desktop.
+- Moved mode switching back to the app header as the primary navigation.
+- Hid sample/load/save/import/export utility actions from the main header to reduce beginner noise.
+- The primary trial button now changes by mode: cutting sample, study-desk design, or complete professional sample.
+- Moved the mode-linked primary sample action into the header after the mode switch and before print.
+- Hid the standalone quote-generation action from the main workflow strip.
+- Removed the workflow hint/step strip from the visible UI.
+- Split local history storage by mode: cutting history, design history, and professional order history are now separate.
+- Cutting/design histories use generated names instead of order status: cutting uses material/thickness, part count, and time; design uses product type, dimensions, and time.
+- Simple histories no longer show quote/order status badges such as pending quote.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Static HTML/CSS check confirms mode controls and mode selectors render.
+- Mock DOM flow: initialize quick mode, switch design/pro modes, persist mode preference, and quick-start design flow switches to design mode.
+
+## 2026-06-19 local business plan and production packet iteration
+
+Workflow progress:
+
+- Added `BUSINESS_PLAN_2026.md` with market reading, target users, product wedge, pricing hypothesis, GTM plan, risks, and 12-week roadmap.
+- Added a production work order block after the customer quote sheet.
+- Added production work order print and standalone HTML export actions.
+- Added production KPIs, production checklist, board-group context, part operation routes, and reusable offcut warehouse rows.
+- Embedded the production work order into the full exported nesting report.
+- Added print-only mode for production work orders.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Static HTML check confirms production work order controls render.
+- Mock DOM flow: initialize app, run nesting, render production work order, and export `production-sheet.html`.
+
+## 2026-06-19 local order workflow refinement
+
+Workflow progress:
+
+- Added search, status filtering, and due-attention filtering for local order history.
+- Added inline status editing for saved orders, so quotes can move through quoted, nesting, production, and done without reloading the order.
+- Added overdue, urgent, and due-soon visual states for saved orders.
+- Updated the order dashboard to count both overdue and near-term orders as delivery attention items.
+- Tightened panel title styling and history controls for a cleaner workspace layout.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Local static HTTP smoke test confirms the order-history filters render.
+- Mock DOM flow: save a quoted order, update it to production, filter by status, filter by due attention, and render the filtered history list.
+- In-app browser verification was attempted but blocked by the Windows sandbox process launcher.
+
+## 2026-06-18 local order operations iteration
+
+Workflow progress:
+
+- Added order status and due date fields to the order/default-stock panel.
+- Added a compact order dashboard for saved orders, active follow-ups, near-term delivery, and quoted amount.
+- Saved quote summary, status, and due date into local order-history snapshots.
+- Enhanced order-history rows with customer, part count, quote amount, due date, status badge, and fixed Chinese action labels.
+- Added status and due date into the customer quote sheet metadata.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Local static HTTP smoke test confirms order status and dashboard markup render.
+- Mock DOM flow: initialize app, save a quoted order with due date, persist quote summary, render order dashboard, and render quote metadata.
+
+## 2026-06-18 local trial workflow strip
+
+Workflow progress:
+
+- Added a compact trial workflow strip under the header.
+- Added quick-start action for the study-desk bookcase combo template.
+- Added a quote-sheet focus action that ensures nesting is current before jumping to the customer quote sheet.
+- Made quote-sheet focus generate the selected template automatically when the part list is empty.
+- Hid the trial strip in print and adapted it for mobile flow.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Local static HTTP smoke test confirms trial controls render.
+- Mock DOM flow: quick-start combo, run nesting, and render quote sheet.
+
+## 2026-06-18 local modular designer enhancement
+
+Workflow progress:
+
+- Added door mode options: no doors, lower doors, and full-height doors.
+- Added configurable drawer count from 0 to 4 while keeping the old drawer checkbox convenient.
+- Added design detail rows for structure, dimensions, and back panel breakdown.
+- Added dimension marks to the 2D design preview.
+- Updated generated order names to include product type and full body dimensions.
+- Added design templates for study-desk combo, open bookcase, and drawer desk.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Mock DOM flow: configure combo design with full-height doors and drawers, generate parts, run nesting, render design details, render preview dimension marks, and generate quote sheet.
+
+## 2026-06-18 local customer quote sheet iteration
+
+Workflow progress:
+
+- Added a customer quote sheet block inside the nesting result panel.
+- Added quote sheet preview with customer, order, product type, stock size, material groups, fee rows, total cost, target margin, suggested price, and commercial notes.
+- Added print-only quote sheet mode.
+- Added standalone HTML quote export.
+- Embedded the full customer quote sheet into exported HTML reports.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Mock DOM flow: generate combo design, run nesting, render quote sheet preview, export standalone quote HTML, and confirm the report contains the quote sheet.
+
+## 2026-06-18 local sheet hover preview refinement
+
+Workflow progress:
+
+- Reduced sheet hover flicker by keeping the active preview until the pointer leaves the SVG or switches sheets.
+- Added viewport-aware preview placement with left/right fallback and cursor-relative vertical positioning.
+- Enlarged the 980px-2530px hover preview and positioned it above the pointer when space allows.
+- In the 980px-2530px range, widened the preview again and anchored it above the active sheet card so it stays fixed while moving inside the same sheet.
+- Widened the 980px-2530px preview again and capped its height by the space above the active sheet card to avoid covering the hovered sheet.
+- Removed hover preview scrollbars by fitting preview width to the available vertical space and sheet SVG ratio.
+- Added active sheet highlighting while hovering.
+- Added a hover summary for part count, reusable offcuts, used area, and total sheet area.
+- Switched preview visibility to opacity/visibility transitions instead of display toggling.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Local static HTTP smoke test.
+- Mock DOM flow: generate combo design, render nesting sheets, and confirm hover preview summary output.
+
+## 2026-06-18 local quote iteration
+
+Workflow progress:
+
+- Added a quote calculator panel for main boards, back boards, edge banding, labor, waste, and target profit.
+- Added live quote cards for estimated sheets, cost, suggested price, and edge length.
+- Used actual nesting sheet counts when a fresh nesting result exists, and theoretical area estimates while designing.
+- Split generated back panels into smaller pieces so wide bookcases fit standard stock panels more reliably.
+- Added quote summary to exported HTML reports.
+
+Verification:
+
+- `node --check outputs/wood-cutting-mvp/app.js`
+- Local static HTTP smoke test for the quote UI.
+- Mock DOM flow: generate combo design, run nesting, confirm zero unplaced parts, calculate suggested price, and confirm report quote section.
+
 ## 2026-06-18 modular bookcase and desk designer
 
 Workflow progress:
