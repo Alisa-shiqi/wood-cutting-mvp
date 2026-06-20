@@ -107,6 +107,55 @@
             &#36793;&#36317; mm
             <input id="margin" type="number" min="0" value="5" />
           </label>
+          <label class="cutting-mode-field">
+            &#24320;&#26009;&#27169;&#24335;
+            <select id="cuttingMode">
+              <option value="manual">&#25512;&#21488;&#38191;/&#20154;&#24037;&#24320;&#26009;</option>
+              <option value="beam">&#30005;&#23376;&#38191;/&#35009;&#26495;&#38191;</option>
+              <option value="cnc">CNC&#24320;&#26009;&#26426;</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="manual-weight-panel">
+          <div class="panel-subtitle">
+            <strong>&#25512;&#21488;&#38191;&#31639;&#27861;&#26435;&#37325;</strong>
+            <span>&#20165;&#19987;&#19994;&#27169;&#24335;&#29983;&#25928;</span>
+          </div>
+          <div class="weight-grid">
+            <label>
+              &#26495;&#26448;&#24352;&#25968;
+              <input id="weightSheetCount" type="number" min="0" max="100" value="35" />
+            </label>
+            <label>
+              &#23569;&#35843;&#25377;&#23610;
+              <input id="weightFenceChanges" type="number" min="0" max="100" value="22" />
+            </label>
+            <label>
+              &#21033;&#29992;&#29575;
+              <input id="weightMaterialYield" type="number" min="0" max="100" value="18" />
+            </label>
+            <label>
+              &#21487;&#20445;&#30041;&#20313;&#26009;
+              <input id="weightReusableOffcut" type="number" min="0" max="100" value="12" />
+            </label>
+            <label>
+              &#23569;&#26059;&#36716;
+              <input id="weightRotation" type="number" min="0" max="100" value="8" />
+            </label>
+            <label>
+              &#20999;&#21106;&#38271;&#24230;
+              <input id="weightCutLength" type="number" min="0" max="100" value="5" />
+            </label>
+            <label>
+              &#24635;&#20215;&#27604;&#37325;
+              <input id="weightTotalCost" type="number" min="0" max="100" value="50" />
+            </label>
+            <label>
+              &#27599;&#20992;&#20803;
+              <input id="weightCutPrice" type="number" min="0" step="0.5" value="5" />
+            </label>
+          </div>
         </div>
 
       </section>
@@ -193,7 +242,11 @@
 
       <section class="panel quote-panel">
         <div class="panel-title">
-          <h2>&#25253;&#20215;&#24555;&#31639;</h2>
+          <h2>
+            <span class="quote-title-simple">&#36153;&#29992;&#39044;&#20272;</span>
+            <span class="quote-title-pro">&#25253;&#20215;&#24555;&#31639;</span>
+          </h2>
+          <button id="simpleCalculateBtn" class="primary quote-calc-btn" type="button">&#35745;&#31639;</button>
           <button id="applyQuotePresetBtn" type="button">&#22871;&#29992;</button>
         </div>
         <div class="quote-preset-row">
@@ -203,6 +256,24 @@
           </label>
         </div>
         <div id="quotePriceHint" class="quote-price-hint"></div>
+        <div class="quote-simple-grid">
+          <label>
+            &#20027;&#26495; &#24352;
+            <input id="simpleMainSheets" type="number" min="0" step="1" value="0" />
+          </label>
+          <label>
+            &#32972;&#26495; &#24352;
+            <input id="simpleBackSheets" type="number" min="0" step="1" value="0" />
+          </label>
+          <label>
+            &#23553;&#36793; m
+            <input id="simpleEdgeMeters" type="number" min="0" step="0.1" value="0" />
+          </label>
+          <label>
+            &#21152;&#24037;&#20214;&#25968;
+            <input id="simplePieceCount" type="number" min="0" step="1" value="0" />
+          </label>
+        </div>
         <div class="quote-grid">
           <label>
             &#20027;&#26495; &#20803;/&#24352;
@@ -263,6 +334,13 @@
         <div class="panel-title">
           <h2>&#26495;&#20214;&#28165;&#21333;</h2>
           <div class="table-tools">
+            <label class="quick-cutting-mode">
+              <select id="quickStockPresetSelect" aria-label="&#26495;&#26448;&#39044;&#35774;"></select>
+              <select id="quickCuttingMode">
+                <option value="manual">&#25512;&#21488;&#38191;/&#20154;&#24037;&#24320;&#26009;</option>
+                <option value="beam">&#30005;&#23376;&#38191;/&#35009;&#26495;&#38191;</option>
+              </select>
+            </label>
             <button id="nestBtn" class="primary" type="button">&#33258;&#21160;&#25490;&#26009;</button>
             <button id="addPartBtn" type="button">&#26032;&#22686;&#26495;&#20214;</button>
             <button id="clearBtn" type="button">&#28165;&#31354;</button>
@@ -285,7 +363,7 @@
                 <th>&#26448;&#36136;</th>
                 <th>&#21402;&#24230;</th>
                 <th>&#23553;&#36793;</th>
-                <th>&#21487;&#26059;&#36716;</th>
+                <th>&#26059;&#36716;</th>
                 <th>&#22791;&#27880;</th>
                 <th></th>
               </tr>
@@ -293,7 +371,7 @@
             <tbody id="partsBody"></tbody>
           </table>
         </div>
-        <p class="hint">CSV &#34920;&#22836;&#65306;&#21517;&#31216;,&#38271;&#24230;,&#23485;&#24230;,&#25968;&#37327;,&#26448;&#36136;,&#21402;&#24230;,&#23553;&#36793;,&#21487;&#26059;&#36716;,&#22791;&#27880;&#12290;&#23553;&#36793;&#21487;&#22635; F/B/L/R &#25110;&#20013;&#25991;&#26041;&#21521;&#12290;</p>
+        <p class="hint">CSV &#34920;&#22836;&#65306;&#21517;&#31216;,&#38271;&#24230;,&#23485;&#24230;,&#25968;&#37327;,&#26448;&#36136;,&#21402;&#24230;,&#23553;&#36793;,&#26059;&#36716;,&#22791;&#27880;&#12290;&#23553;&#36793;&#21487;&#22635; F/B/L/R &#25110;&#20013;&#25991;&#26041;&#21521;&#12290;</p>
       </section>
 
       <section class="panel result-panel">
@@ -336,6 +414,7 @@
           <h2>&#25490;&#26009;&#22270;</h2>
           <div class="view-tools">
             <button id="fullscreenLayoutBtn" type="button" title="zoom">&#25918;&#22823;</button>
+            <button id="cutSequenceBtn" type="button">&#24320;&#26009;&#39034;&#24207;</button>
             <button id="downloadSvgBtn" type="button">&#19979;&#36733; SVG</button>
             <button id="downloadDxfBtn" type="button">&#19979;&#36733; DXF</button>
           </div>
@@ -372,7 +451,7 @@
     <dialog id="layoutDialog" class="layout-dialog">
       <form method="dialog">
         <div class="dialog-toolbar">
-          <h3>&#25490;&#26009;&#22270;&#25918;&#22823;&#26597;&#30475;</h3>
+          <h3 id="layoutDialogTitle">&#25490;&#26009;&#22270;&#25918;&#22823;&#26597;&#30475;</h3>
           <div class="dialog-actions">
             <button id="printLayoutDialogBtn" type="button">&#25171;&#21360;</button>
             <button value="cancel" type="submit">&#20851;&#38381;</button>

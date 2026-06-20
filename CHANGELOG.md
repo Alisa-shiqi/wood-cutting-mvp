@@ -17,6 +17,26 @@ Workflow progress:
 - Cutting/design history cards use a denser list layout so more records fit in the left history panel.
 - The design quick action is now `快速使用书桌组合`; the professional demo action is now `快速载入完整案例`.
 - Removed the visible design template selector/apply row from module design while keeping quick desk-combo generation available from the header action.
+- Quick/design quote quick-calc is now a consumer-facing cost estimator instead of a professional cost/profit quote: it shows estimated total cost, board fee, edge/cutting fee, and a reference range.
+- Quote input changes now calculate against the active workflow parts, so quick cutting no longer falls back to module-design parts.
+- Quick/design cost estimator now lets users directly edit main-board sheets, back-board sheets, edge meters, and processing piece count, and shows the total-cost formula.
+- Cutting/design/order history rows now highlight the currently loaded or selected history item.
+- Simple cost-estimator cards now show equation-style amounts, with estimated total occupying a full row.
+- Simple cost estimator now has a calculate button, removes the separate formula block, and moves formulas into card subtitles.
+- Simple cost-estimator calculate action now sits in the panel title bar, and detail formulas use unit-price times quantity.
+- Added cutting-mode state with quick/design fixed to push-table/manual cutting and professional mode exposing manual, beam saw, and CNC choices.
+- Nesting results now record and display the selected cutting mode and current algorithm note.
+- Bound the previous free-rectangle nesting algorithm to CNC mode and added a push-table/manual guillotine strip-cut algorithm for quick/design and manual professional mode.
+- Quick/design nesting results no longer show the cutting-mode stat card.
+- Added a cut-sequence dialog from the nesting drawing panel, reusing the enlarged layout dialog to show manual strip-cut order or CNC part order.
+- Improved the cut-sequence dialog with workflow cards, legend, per-sheet step summary, clearer SVG labels, and a stage-based sequence table.
+- Reduced cut-sequence SVG label density and added per-sheet part-code and offcut-code verification tables.
+- Cut-sequence diagrams now draw reusable offcuts with orange dashed regions and offcut codes for easier verification.
+- Refined manual cutting into horizontal strip ripping plus crosscut order, with cut numbers and strip-width-first sorting to reduce fence changes.
+- Added weighted manual-cut optimization for sheet count, fence changes, yield, reusable offcuts, rotation, and cut length; sequence dialog now shows the weight analysis and caches sheet steps for faster rendering.
+- Fixed rotate-permission parsing for string values such as `false` and `否`, and exposed manual-cut weights for professional mode tuning.
+- Renamed user-facing part-list rotate permission label from `可旋转` to `旋转` across the table, CSV hint, CSV export, and printable part list.
+- Upgraded guillotine nesting to run multiple ordering strategies and select the best result by the active mode weights; beam-saw mode now uses its own efficiency-focused preset.
 
 Verification:
 

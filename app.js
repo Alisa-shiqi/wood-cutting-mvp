@@ -1,4 +1,4 @@
-const STORAGE_KEY = "wood-cutting-mvp-state-v2";
+﻿const STORAGE_KEY = "wood-cutting-mvp-state-v2";
 const STOCK_PRESETS_KEY = "wood-cutting-mvp-stock-presets-v1";
 const ORDER_HISTORY_KEY = "wood-cutting-mvp-order-history-v1";
 const CUTTING_HISTORY_KEY = "wood-cutting-mvp-cutting-history-v1";
@@ -16,6 +16,11 @@ const defaultStockPresets = [
   { id: "std-eco-2800-1220-18", category: "\u751f\u6001/\u514d\u6f06\u677f", name: "\u67dc\u4f53/\u9970\u9762", length: 2800, width: 1220, thickness: 18, material: "\u751f\u6001\u677f" },
   { id: "std-back-2440-1220-9", category: "\u80cc\u677f/\u8584\u677f", name: "\u539a\u80cc\u677f", length: 2440, width: 1220, thickness: 9, material: "\u80cc\u677f" },
   { id: "std-back-2440-1220-5", category: "\u80cc\u677f/\u8584\u677f", name: "\u8584\u80cc\u677f", length: 2440, width: 1220, thickness: 5, material: "\u80cc\u677f" },
+];
+
+const quickStockSizeOptions = [
+  { id: "quick-size-2440-1220", label: "2440x1220", length: 2440, width: 1220 },
+  { id: "quick-size-2800-1220", label: "2800x1220", length: 2800, width: 1220 },
 ];
 
 const defaultQuotePresets = [
@@ -49,6 +54,57 @@ const orderStatusOptions = {
   nesting: { label: "\u5df2\u6392\u6599", className: "status-nesting" },
   production: { label: "\u751f\u4ea7\u4e2d", className: "status-production" },
   done: { label: "\u5df2\u5b8c\u6210", className: "status-done" },
+};
+
+const cuttingModeOptions = {
+  manual: { label: "\u63a8\u53f0\u952f/\u4eba\u5de5\u5f00\u6599", algorithm: "\u77e9\u5f62\u9884\u6392+\u4eba\u5de5\u590d\u6838\u5207\u5272\u987a\u5e8f" },
+  beam: { label: "\u7535\u5b50\u952f/\u88c1\u677f\u952f", algorithm: "\u6279\u91cf\u77e9\u5f62\u88c1\u5207+\u540c\u6750\u8d28\u5206\u7ec4" },
+  cnc: { label: "CNC\u5f00\u6599\u673a", algorithm: "\u4e8c\u7ef4\u5957\u6599+\u5200\u5f84/\u5b54\u69fd\u5de5\u827a" },
+};
+
+const manualCutWeights = {
+  sheetCount: 35,
+  fenceChanges: 22,
+  materialYield: 18,
+  reusableOffcut: 12,
+  rotation: 8,
+  cutLength: 5,
+  totalCost: 50,
+  cutPrice: 5,
+};
+
+const offcutRules = {
+  minKeepSide: 120,
+  minKeepArea: 120 * 300,
+  minRegularSide: 180,
+  minRegularLongSide: 450,
+  shortTailLimit: 180,
+  filledTailLimit: 80,
+  minBelowRegular: 300,
+};
+
+const cuttingWeightPresets = {
+  manual: manualCutWeights,
+  beam: {
+    sheetCount: 30,
+    fenceChanges: 20,
+    materialYield: 30,
+    reusableOffcut: 12,
+    rotation: 3,
+    cutLength: 18,
+    totalCost: 35,
+    cutPrice: 4,
+  },
+  cnc: {
+    sheetCount: 20,
+    fenceChanges: 2,
+    materialYield: 50,
+    reusableOffcut: 8,
+    rotation: 2,
+    cutLength: 18,
+    totalCost: 10,
+    cutPrice: 2,
+  },
 };
 
 const wardrobeParts = [
@@ -186,6 +242,8 @@ let state = {
   material: text.defaultMaterial,
   kerf: 4,
   margin: 5,
+  cuttingMode: "manual",
+  manualWeights: { ...manualCutWeights },
   parts: structuredClone(wardrobeParts),
   result: null,
   resultDirty: false,
@@ -193,6 +251,7 @@ let state = {
 
 let activeSheetPreview = null;
 let appMode = "quick";
+let activeHistoryId = "";
 let historyFilters = {
   query: "",
   status: "all",
@@ -214,6 +273,17 @@ const els = {
   material: document.getElementById("material"),
   kerf: document.getElementById("kerf"),
   margin: document.getElementById("margin"),
+  cuttingMode: document.getElementById("cuttingMode"),
+  quickStockPresetSelect: document.getElementById("quickStockPresetSelect"),
+  quickCuttingMode: document.getElementById("quickCuttingMode"),
+  weightSheetCount: document.getElementById("weightSheetCount"),
+  weightFenceChanges: document.getElementById("weightFenceChanges"),
+  weightMaterialYield: document.getElementById("weightMaterialYield"),
+  weightReusableOffcut: document.getElementById("weightReusableOffcut"),
+  weightRotation: document.getElementById("weightRotation"),
+  weightCutLength: document.getElementById("weightCutLength"),
+  weightTotalCost: document.getElementById("weightTotalCost"),
+  weightCutPrice: document.getElementById("weightCutPrice"),
   sampleOrderSelect: document.getElementById("sampleOrderSelect"),
   stockPresetSelect: document.getElementById("stockPresetSelect"),
   orderDashboard: document.getElementById("orderDashboard"),
@@ -243,6 +313,11 @@ const els = {
   designPreview: document.getElementById("designPreview"),
   quotePresetSelect: document.getElementById("quotePresetSelect"),
   quotePriceHint: document.getElementById("quotePriceHint"),
+  simpleMainSheets: document.getElementById("simpleMainSheets"),
+  simpleBackSheets: document.getElementById("simpleBackSheets"),
+  simpleEdgeMeters: document.getElementById("simpleEdgeMeters"),
+  simplePieceCount: document.getElementById("simplePieceCount"),
+  simpleCalculateBtn: document.getElementById("simpleCalculateBtn"),
   mainBoardPrice: document.getElementById("mainBoardPrice"),
   backBoardPrice: document.getElementById("backBoardPrice"),
   edgePrice: document.getElementById("edgePrice"),
@@ -267,6 +342,7 @@ const els = {
   projectDialog: document.getElementById("projectDialog"),
   projectText: document.getElementById("projectText"),
   layoutDialog: document.getElementById("layoutDialog"),
+  layoutDialogTitle: document.getElementById("layoutDialogTitle"),
   layoutDialogContent: document.getElementById("layoutDialogContent"),
 };
 
@@ -285,6 +361,10 @@ function readSettings() {
   state.material = els.material.value.trim() || text.defaultMaterial;
   state.kerf = toNumber(els.kerf.value, 0);
   state.margin = toNumber(els.margin.value, 0);
+  const selectedCuttingMode = appMode === "pro" ? els.cuttingMode?.value : els.quickCuttingMode?.value;
+  state.cuttingMode = cuttingModeOptions[selectedCuttingMode] ? selectedCuttingMode : "manual";
+  if (appMode !== "pro" && state.cuttingMode === "cnc") state.cuttingMode = "manual";
+  state.manualWeights = readManualWeights();
 }
 
 function writeSettings() {
@@ -299,6 +379,46 @@ function writeSettings() {
   els.material.value = state.material;
   els.kerf.value = state.kerf;
   els.margin.value = state.margin;
+  if (els.cuttingMode) els.cuttingMode.value = state.cuttingMode || "manual";
+  if (els.quickCuttingMode) els.quickCuttingMode.value = state.cuttingMode === "beam" ? "beam" : "manual";
+  writeManualWeights();
+}
+
+function manualWeightInputs() {
+  return {
+    sheetCount: els.weightSheetCount,
+    fenceChanges: els.weightFenceChanges,
+    materialYield: els.weightMaterialYield,
+    reusableOffcut: els.weightReusableOffcut,
+    rotation: els.weightRotation,
+    cutLength: els.weightCutLength,
+    totalCost: els.weightTotalCost,
+    cutPrice: els.weightCutPrice,
+  };
+}
+
+function readManualWeights() {
+  const inputs = manualWeightInputs();
+  return Object.fromEntries(Object.entries(manualCutWeights).map(([key, fallback]) => {
+    return [key, Math.max(0, toNumber(inputs[key]?.value, fallback))];
+  }));
+}
+
+function writeManualWeights() {
+  const inputs = manualWeightInputs();
+  const weights = { ...manualCutWeights, ...(state.manualWeights || {}) };
+  Object.entries(inputs).forEach(([key, input]) => {
+    if (input) input.value = weights[key];
+  });
+}
+
+function activeManualWeights() {
+  return { ...manualCutWeights, ...(state.manualWeights || {}) };
+}
+
+function activeCutWeights(mode = state.cuttingMode) {
+  if (mode === "manual") return activeManualWeights();
+  return { ...(cuttingWeightPresets[mode] || cuttingWeightPresets.manual) };
 }
 
 function loadAppMode() {
@@ -322,6 +442,11 @@ function setAppMode(mode) {
 
 function applyAppMode() {
   document.body.dataset.mode = appMode;
+  if (appMode !== "pro" && state.cuttingMode === "cnc") {
+    state.cuttingMode = "manual";
+  }
+  if (els.cuttingMode) els.cuttingMode.value = state.cuttingMode || "manual";
+  if (els.quickCuttingMode) els.quickCuttingMode.value = state.cuttingMode === "beam" ? "beam" : "manual";
   els.modeButtons.forEach((button) => {
     const active = button.dataset.mode === appMode;
     button.classList.toggle("is-active", active);
@@ -364,10 +489,18 @@ function normalizePart(input) {
     quantity: Math.max(1, Math.round(toNumber(input.quantity, 1))),
     material: String(input.material || state.material || text.defaultMaterial).trim(),
     thickness: Math.max(1, Math.round(toNumber(input.thickness, state.sheetThickness || 18))),
-    allowRotate: Boolean(input.allowRotate),
+    allowRotate: parseBoolean(input.allowRotate),
     edgeBanding: normalizeEdgeBanding(input.edgeBanding || input.edge || ""),
     note: String(input.note || "").trim(),
   };
+}
+
+function parseBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  const textValue = String(value || "").trim().toLowerCase();
+  if (!textValue) return false;
+  return ["1", "true", "yes", "y", "是", "可", "允许", "旋转"].includes(textValue);
 }
 
 function normalizeEdgeBanding(value) {
@@ -490,7 +623,11 @@ function renderBoardGroupLine(parts, options = {}) {
 }
 
 function renderBoardParamLine() {
-  return `<div class="board-param-line"><span class="board-param-chip">\u677f\u6750 ${state.sheetLength}x${state.sheetWidth}mm | \u952f\u7f1d ${state.kerf}mm | \u8fb9\u8ddd ${state.margin}mm</span></div>`;
+  return `<div class="board-param-line"><span class="board-param-chip">\u677f\u6750 ${state.sheetLength}x${state.sheetWidth}mm | \u952f\u7f1d ${state.kerf}mm | \u8fb9\u8ddd ${state.margin}mm | ${escapeHtml(cuttingModeLabel(state.cuttingMode))}</span></div>`;
+}
+
+function cuttingModeLabel(mode = state.cuttingMode) {
+  return (cuttingModeOptions[mode] || cuttingModeOptions.manual).label;
 }
 
 function readDesignerConfig() {
@@ -695,6 +832,10 @@ function renderQuoteSummary(parts = state.parts, options = {}) {
   if (!els.quoteSummary) return;
   const result = options.useResult === false ? null : (state.resultDirty ? null : state.result);
   const quote = calculateQuote(parts, result, readQuoteConfig());
+  if (appMode !== "pro") {
+    renderSimpleQuoteSummary(parts, result, quote, options);
+    return;
+  }
   els.quoteSummary.innerHTML = `
     ${quoteCard("\u9884\u8ba1\u677f\u6750", `${quote.totalSheets}\u5f20`, `${quote.mainSheets}\u4e3b\u677f / ${quote.backSheets}\u80cc\u677f`)}
     ${quoteCard("\u6210\u672c\u5408\u8ba1", moneyText(quote.totalCost), `\u6750\u6599 ${moneyText(quote.materialCost)} | \u52a0\u5de5 ${moneyText(quote.laborCost)}`)}
@@ -702,6 +843,49 @@ function renderQuoteSummary(parts = state.parts, options = {}) {
     ${quoteCard("\u5c01\u8fb9\u957f\u5ea6", `${quote.edgeMeters.toFixed(1)}m`, `\u5c01\u8fb9\u8d39 ${moneyText(quote.edgeCost)}`)}
   `;
   renderQuoteSheet(parts, quote, options.mode || (result ? "\u6392\u6599\u540e" : "\u9884\u4f30"));
+}
+
+function renderSimpleQuoteSummary(parts, result, quote, options = {}) {
+  syncSimpleQuoteInputs(quote);
+  const config = readQuoteConfig();
+  const simple = readSimpleQuoteValues(quote);
+  const mainCost = simple.mainSheets * config.mainBoardPrice;
+  const backCost = simple.backSheets * config.backBoardPrice;
+  const edgeCost = simple.edgeMeters * config.edgePrice;
+  const laborCost = simple.pieceCount * config.laborPrice;
+  const boardCost = mainCost + backCost;
+  const serviceCost = edgeCost + laborCost;
+  const estimatedTotal = mainCost + backCost + edgeCost + laborCost;
+  els.quoteSummary.innerHTML = `
+    ${quoteCard("\u9884\u8ba1\u603b\u8d39\u7528", moneyText(estimatedTotal), "\u603b\u8d39\u7528=\u677f\u6750\u8d39+\u5c01\u8fb9+\u5f00\u6599", true, "quote-card-total")}
+    ${quoteCard("\u677f\u6750\u8d39", moneyText(boardCost), `\u4e3b\u677f\uff1a${moneyText(mainCost)}=${stripMoneyText(config.mainBoardPrice)}\u00d7${simple.mainSheets}<br>\u80cc\u677f\uff1a${moneyText(backCost)}=${stripMoneyText(config.backBoardPrice)}\u00d7${simple.backSheets}`, false, "quote-card-simple")}
+    ${quoteCard("\u5c01\u8fb9+\u5f00\u6599", moneyText(serviceCost), `\u5c01\u8fb9\uff1a${moneyText(edgeCost)}=${stripMoneyText(config.edgePrice)}\u00d7${simple.edgeMeters.toFixed(1)}<br>\u5f00\u6599\uff1a${moneyText(laborCost)}=${stripMoneyText(config.laborPrice)}\u00d7${simple.pieceCount}`, false, "quote-card-simple")}
+  `;
+}
+
+function syncSimpleQuoteInputs(quote) {
+  const inputs = simpleQuoteInputs();
+  if (!inputs.length || inputs.includes(document.activeElement)) return;
+  const key = `${quote.mainSheets}|${quote.backSheets}|${quote.edgeMeters.toFixed(1)}|${quote.pieceCount}`;
+  if (els.quoteSummary.dataset.simpleBaseKey === key) return;
+  els.simpleMainSheets.value = quote.mainSheets;
+  els.simpleBackSheets.value = quote.backSheets;
+  els.simpleEdgeMeters.value = quote.edgeMeters.toFixed(1);
+  els.simplePieceCount.value = quote.pieceCount;
+  els.quoteSummary.dataset.simpleBaseKey = key;
+}
+
+function readSimpleQuoteValues(quote) {
+  return {
+    mainSheets: Math.max(0, Math.round(toNumber(els.simpleMainSheets?.value, quote.mainSheets))),
+    backSheets: Math.max(0, Math.round(toNumber(els.simpleBackSheets?.value, quote.backSheets))),
+    edgeMeters: Math.max(0, toNumber(els.simpleEdgeMeters?.value, quote.edgeMeters)),
+    pieceCount: Math.max(0, Math.round(toNumber(els.simplePieceCount?.value, quote.pieceCount))),
+  };
+}
+
+function simpleQuoteInputs() {
+  return [els.simpleMainSheets, els.simpleBackSheets, els.simpleEdgeMeters, els.simplePieceCount].filter(Boolean);
 }
 
 function renderQuoteSheet(parts = state.parts, quote = calculateQuote(parts, state.resultDirty ? null : state.result, readQuoteConfig()), mode = "\u9884\u4f30") {
@@ -831,12 +1015,33 @@ function edgeLengthForPart(item) {
   return length * item.quantity;
 }
 
-function quoteCard(label, value, detail = "", strong = false) {
-  return `<div class="quote-card ${strong ? "is-strong" : ""}"><span>${label}</span><b>${value}</b>${detail ? `<small>${detail}</small>` : ""}</div>`;
+function quoteCard(label, value, detail = "", strong = false, extraClass = "") {
+  return `<div class="quote-card ${strong ? "is-strong" : ""} ${extraClass}"><span>${label}</span><b>${value}</b>${detail ? `<small>${detail}</small>` : ""}</div>`;
+}
+
+function currentQuoteParts() {
+  if (appMode === "design" && (!state.parts.length || state.resultDirty)) {
+    return generateDesignParts(readDesignerConfig());
+  }
+  return state.parts;
+}
+
+function currentQuoteUseResult() {
+  return Boolean(state.result && !state.resultDirty && state.parts.length);
 }
 
 function moneyText(value) {
   return `\u00a5${Math.round(value)}`;
+}
+
+function unitMoneyText(value) {
+  const num = Number(value) || 0;
+  return `\u00a5${Number.isInteger(num) ? num : num.toFixed(1)}`;
+}
+
+function stripMoneyText(value) {
+  const num = Number(value) || 0;
+  return Number.isInteger(num) ? String(num) : num.toFixed(1);
 }
 
 function designTypeName(type) {
@@ -1112,7 +1317,18 @@ function bindEvents() {
 
   document.getElementById("addPartBtn").addEventListener("click", () => {
     readSettings();
-    state.parts.push(part("\u65b0\u677f\u4ef6", 600, 300, 1, state.material, state.sheetThickness, true, "", ""));
+    const previous = state.parts[state.parts.length - 1];
+    state.parts.push(part(
+      "\u65b0\u677f\u4ef6",
+      previous?.length || 600,
+      previous?.width || 300,
+      1,
+      previous?.material || state.material,
+      previous?.thickness || state.sheetThickness,
+      previous?.allowRotate ?? true,
+      previous?.edgeBanding || "",
+      ""
+    ));
     markResultDirty();
     renderParts();
     renderQuoteSummary(state.parts);
@@ -1135,7 +1351,10 @@ function bindEvents() {
   });
   document.getElementById("saveBtn").addEventListener("click", saveLocal);
   document.getElementById("printBtn").addEventListener("click", () => window.print());
-  document.getElementById("applyStockPresetBtn").addEventListener("click", applySelectedStockPreset);
+  document.getElementById("applyStockPresetBtn").addEventListener("click", () => applySelectedStockPreset());
+  if (els.quickStockPresetSelect) {
+    els.quickStockPresetSelect.addEventListener("change", () => applySelectedStockPreset(els.quickStockPresetSelect));
+  }
   document.getElementById("saveStockPresetBtn").addEventListener("click", saveCurrentStockPreset);
   document.getElementById("applyQuotePresetBtn").addEventListener("click", applySelectedQuotePreset);
   document.getElementById("saveOrderHistoryBtn").addEventListener("click", saveCurrentOrderHistory);
@@ -1154,6 +1373,7 @@ function bindEvents() {
   document.getElementById("printProductionBtn").addEventListener("click", printProductionSheet);
   document.getElementById("exportProductionBtn").addEventListener("click", exportProductionHtml);
   document.getElementById("fullscreenLayoutBtn").addEventListener("click", openLayoutFullscreen);
+  document.getElementById("cutSequenceBtn").addEventListener("click", openCutSequenceDialog);
   document.getElementById("printLayoutDialogBtn").addEventListener("click", printLayoutDialog);
   document.getElementById("downloadSvgBtn").addEventListener("click", downloadSvg);
   document.getElementById("downloadDxfBtn").addEventListener("click", downloadDxf);
@@ -1199,13 +1419,22 @@ function bindEvents() {
     els.wasteRate,
     els.profitRate,
   ].forEach((input) => {
-    input.addEventListener("input", () => renderQuoteSummary(state.result && !state.resultDirty ? state.parts : generateDesignParts(readDesignerConfig()), { useResult: Boolean(state.result && !state.resultDirty) }));
-    input.addEventListener("change", () => renderQuoteSummary(state.result && !state.resultDirty ? state.parts : generateDesignParts(readDesignerConfig()), { useResult: Boolean(state.result && !state.resultDirty) }));
+    input.addEventListener("input", () => renderQuoteSummary(currentQuoteParts(), { useResult: currentQuoteUseResult() }));
+    input.addEventListener("change", () => renderQuoteSummary(currentQuoteParts(), { useResult: currentQuoteUseResult() }));
   });
 
-  [els.sheetLength, els.sheetWidth, els.sheetThickness, els.material, els.margin].forEach((input) => {
+  simpleQuoteInputs().forEach((input) => {
+    input.addEventListener("input", () => renderQuoteSummary(currentQuoteParts(), { useResult: currentQuoteUseResult() }));
+    input.addEventListener("change", () => renderQuoteSummary(currentQuoteParts(), { useResult: currentQuoteUseResult() }));
+  });
+  if (els.simpleCalculateBtn) {
+    els.simpleCalculateBtn.addEventListener("click", () => renderQuoteSummary(currentQuoteParts(), { useResult: currentQuoteUseResult() }));
+  }
+
+  [els.sheetLength, els.sheetWidth, els.sheetThickness, els.material, els.margin, els.cuttingMode, els.quickCuttingMode].filter(Boolean).forEach((input) => {
     input.addEventListener("input", () => {
       readSettings();
+      if (input === els.cuttingMode || input === els.quickCuttingMode) writeSettings();
       if (input === els.material || input === els.sheetThickness) {
         els.designMaterial.value = state.material;
         els.designThickness.value = state.sheetThickness;
@@ -1214,6 +1443,25 @@ function bindEvents() {
       markResultDirty();
       renderPartsSummary();
       syncQuotePresetSuggestion();
+      syncStockPresetSelects();
+    });
+    input.addEventListener("change", () => {
+      readSettings();
+      if (input === els.cuttingMode || input === els.quickCuttingMode) writeSettings();
+      markResultDirty();
+      renderPartsSummary();
+      syncStockPresetSelects();
+    });
+  });
+
+  Object.values(manualWeightInputs()).filter(Boolean).forEach((input) => {
+    input.addEventListener("input", () => {
+      state.manualWeights = readManualWeights();
+      markResultDirty();
+    });
+    input.addEventListener("change", () => {
+      state.manualWeights = readManualWeights();
+      markResultDirty();
     });
   });
 
@@ -1318,6 +1566,7 @@ function runNesting() {
     sheetWidth: state.sheetWidth,
     kerf: state.kerf,
     margin: state.margin,
+    cuttingMode: state.cuttingMode,
     parts: state.parts,
   });
   state.resultDirty = false;
@@ -1330,7 +1579,64 @@ function markResultDirty() {
   renderResult();
 }
 
-function nestParts({ sheetLength, sheetWidth, kerf, margin, parts }) {
+function nestParts({ sheetLength, sheetWidth, kerf, margin, cuttingMode = "manual", parts }) {
+  const mode = cuttingModeOptions[cuttingMode] ? cuttingMode : "manual";
+  const result = mode === "cnc"
+    ? nestPartsFreeRectOptimized({ sheetLength, sheetWidth, kerf, margin, parts })
+    : nestPartsGuillotineOptimized({ sheetLength, sheetWidth, kerf, margin, parts }, mode);
+  result.cuttingMode = mode;
+  result.algorithmNote = cuttingModeOptions[mode].algorithm;
+  if (mode !== "cnc") result.weightAnalysis = manualWeightAnalysis(activeCutWeights(mode));
+  return result;
+}
+
+function manualWeightAnalysis(weights = activeManualWeights()) {
+  return [
+    `\u677f\u6750\u5f20\u6570 ${weights.sheetCount}%`,
+    `\u5c11\u8c03\u6321\u5c3a ${weights.fenceChanges}%`,
+    `\u5229\u7528\u7387 ${weights.materialYield}%`,
+    `\u53ef\u4fdd\u7559\u4f59\u6599 ${weights.reusableOffcut}%`,
+    `\u5c11\u65cb\u8f6c ${weights.rotation}%`,
+    `\u5207\u5272\u957f\u5ea6 ${weights.cutLength}%`,
+    `\u603b\u4ef7\u6bd4\u91cd ${weights.totalCost}%`,
+    `\u6bcf\u5200 \u00a5${weights.cutPrice}`,
+  ];
+}
+
+function nestPartsFreeRectOptimized(params) {
+  const strategies = ["area", "longSide", "shortSide", "height", "width"];
+  const results = strategies.map((strategy) => {
+    const result = nestPartsFreeRect({ ...params, strategy });
+    result.algorithmStrategy = strategy;
+    result.optimizationScore = scoreFreeRectResult(result);
+    return result;
+  });
+  return results.sort((a, b) => a.optimizationScore - b.optimizationScore)[0];
+}
+
+function scoreFreeRectResult(result) {
+  const freeRects = result.sheets.flatMap((sheet) => sheet.freeRects || []);
+  const smallFragments = freeRects.filter((rect) => {
+    const minSide = Math.min(rect.width, rect.height);
+    return rect.width * rect.height > 0 && minSide < offcutRules.minKeepSide;
+  }).length;
+  const regularOffcutArea = freeRects.reduce((sum, rect) => {
+    const minSide = Math.min(rect.width, rect.height);
+    const maxSide = Math.max(rect.width, rect.height);
+    return minSide >= offcutRules.minRegularSide && maxSide >= offcutRules.minRegularLongSide
+      ? sum + rect.width * rect.height
+      : sum;
+  }, 0);
+  const rotatedCount = result.sheets.reduce((sum, sheet) => sum + sheet.placements.filter((item) => item.rotated).length, 0);
+  return result.stats.unplacedCount * 10000000 +
+    result.stats.sheetCount * 900000 +
+    result.stats.wasteArea / 1000 +
+    smallFragments * 25000 +
+    rotatedCount * 1200 -
+    regularOffcutArea / 1000;
+}
+
+function nestPartsFreeRect({ sheetLength, sheetWidth, kerf, margin, parts, strategy = "area" }) {
   const usable = {
     x: margin,
     y: margin,
@@ -1344,9 +1650,7 @@ function nestParts({ sheetLength, sheetWidth, kerf, margin, parts }) {
   groups.forEach((items, groupKey) => {
     const [material, thickness] = groupKey.split("::");
     const groupSheets = [];
-    items
-      .map((item, index) => ({ ...item, instanceId: `${groupKey}-${index + 1}` }))
-      .sort((a, b) => b.length * b.width - a.length * a.width)
+    prepareFreeItems(items, usable, groupKey, strategy)
       .forEach((item) => {
         const tooLarge = findTooLargeReason(item, usable);
         if (tooLarge) {
@@ -1382,6 +1686,288 @@ function nestParts({ sheetLength, sheetWidth, kerf, margin, parts }) {
     sheet.index = index + 1;
   });
   return buildStats(sheets, unplaced, sheetLength, sheetWidth);
+}
+
+function prepareFreeItems(items, usable, groupKey, strategy = "area") {
+  return items.map((item, index) => {
+    const candidates = freeOrientationCandidates(item, usable);
+    const preferred = candidates[0] || { width: item.length, height: item.width, rotated: false };
+    return {
+      ...item,
+      instanceId: `${groupKey}-${index + 1}`,
+      freePreferredWidth: preferred.width,
+      freePreferredHeight: preferred.height,
+      freePreferredArea: item.length * item.width,
+    };
+  }).sort((a, b) => {
+    if (strategy === "longSide") {
+      const diff = Math.max(b.freePreferredWidth, b.freePreferredHeight) - Math.max(a.freePreferredWidth, a.freePreferredHeight);
+      if (diff) return diff;
+    }
+    if (strategy === "shortSide") {
+      const diff = Math.min(b.freePreferredWidth, b.freePreferredHeight) - Math.min(a.freePreferredWidth, a.freePreferredHeight);
+      if (diff) return diff;
+    }
+    if (strategy === "height") {
+      const diff = b.freePreferredHeight - a.freePreferredHeight;
+      if (diff) return diff;
+    }
+    if (strategy === "width") {
+      const diff = b.freePreferredWidth - a.freePreferredWidth;
+      if (diff) return diff;
+    }
+    return b.freePreferredArea - a.freePreferredArea;
+  });
+}
+
+function freeOrientationCandidates(item, usable) {
+  const candidates = [{ width: item.length, height: item.width, rotated: false }];
+  if (item.allowRotate && item.length !== item.width) {
+    candidates.push({ width: item.width, height: item.length, rotated: true });
+  }
+  return candidates
+    .filter((candidate) => candidate.width <= usable.width && candidate.height <= usable.height)
+    .sort((a, b) => {
+      const areaDiff = b.width * b.height - a.width * a.height;
+      if (areaDiff) return areaDiff;
+      const rotateDiff = Number(a.rotated) - Number(b.rotated);
+      if (rotateDiff) return rotateDiff;
+      return Math.max(b.width, b.height) - Math.max(a.width, a.height);
+    });
+}
+
+function nestPartsGuillotineOptimized(params, mode = "manual") {
+  const weights = activeCutWeights(mode);
+  const strategies = ["frequency", "batch", "balanced", "height", "area", "length"];
+  const results = strategies.map((strategy) => {
+    const result = nestPartsManualGuillotine({ ...params, strategy, weights });
+    result.algorithmStrategy = strategy;
+    result.optimizationScore = scoreGuillotineResult(result, weights);
+    return result;
+  });
+  return results.sort((a, b) => a.optimizationScore - b.optimizationScore)[0];
+}
+
+function scoreGuillotineResult(result, weights) {
+  const stripMetrics = manualStripMetrics(result);
+  const rotatedCount = result.sheets.reduce((sum, sheet) => {
+    return sum + sheet.placements.filter((item) => item.rotated).length;
+  }, 0);
+  const cutCount = manualCutCount(result);
+  const cutCost = cutCount * toNumber(weights.cutPrice, 5);
+  const cutLength = result.sheets.reduce((sum, sheet) => {
+    return sum + sheet.placements.reduce((partSum, item) => partSum + item.width, 0);
+  }, 0);
+  return result.stats.unplacedCount * 10000000 +
+    result.stats.sheetCount * weights.sheetCount * 100000 +
+    stripMetrics.stripCount * weights.fenceChanges * 900 +
+    stripMetrics.uniqueStripHeightCount * weights.fenceChanges * 450 +
+    stripMetrics.shortTailCount * weights.materialYield * 180 +
+    stripMetrics.tailWasteArea / 10000 * weights.materialYield * 0.8 +
+    stripMetrics.stripHeightVariance * weights.fenceChanges * 18 +
+    stripMetrics.fragmentedOffcutCount * weights.reusableOffcut * 140 -
+    stripMetrics.regularOffcutArea / 100000 * weights.reusableOffcut * 2 -
+    result.stats.wasteArea / 10000 * weights.materialYield -
+    result.stats.reusableOffcutArea / 100000 * weights.reusableOffcut +
+    rotatedCount * weights.rotation * 300 +
+    cutCost * toNumber(weights.totalCost, 0) * 150 +
+    cutLength / 1000 * weights.cutLength;
+}
+
+function manualCutCount(result) {
+  return result.sheets.reduce((sum, sheet) => {
+    const stripCount = sheet.strips ? sheet.strips.length : inferManualStrips(sheet).length;
+    return sum + stripCount + sheet.placements.length;
+  }, 0);
+}
+
+function manualStripMetrics(result) {
+  const heights = new Set();
+  const heightList = [];
+  let stripCount = 0;
+  let shortTailCount = 0;
+  let tailWasteArea = 0;
+  let fragmentedOffcutCount = 0;
+  let regularOffcutArea = 0;
+  result.sheets.forEach((sheet) => {
+    const right = sheet.usable ? sheet.usable.x + sheet.usable.width : sheet.length;
+    (sheet.strips || []).forEach((strip) => {
+      stripCount += 1;
+      const heightKey = manualDimensionKey(strip.height);
+      heights.add(heightKey);
+      heightList.push(heightKey);
+      const tailWidth = Math.max(0, right - strip.nextX);
+      tailWasteArea += tailWidth * strip.height;
+      if (tailWidth > 0 && tailWidth < offcutRules.shortTailLimit) shortTailCount += 1;
+    });
+    (sheet.freeRects || []).forEach((rect) => {
+      const minSide = Math.min(rect.width, rect.height);
+      const maxSide = Math.max(rect.width, rect.height);
+      if (rect.width * rect.height > 0 && minSide < offcutRules.minKeepSide) fragmentedOffcutCount += 1;
+      if (minSide >= offcutRules.minRegularSide && maxSide >= offcutRules.minRegularLongSide) regularOffcutArea += rect.width * rect.height;
+    });
+  });
+  const averageHeight = heightList.length ? heightList.reduce((sum, item) => sum + item, 0) / heightList.length : 0;
+  const stripHeightVariance = heightList.length
+    ? heightList.reduce((sum, item) => sum + Math.abs(item - averageHeight), 0) / heightList.length
+    : 0;
+  return {
+    stripCount,
+    uniqueStripHeightCount: heights.size,
+    shortTailCount,
+    tailWasteArea,
+    stripHeightVariance,
+    fragmentedOffcutCount,
+    regularOffcutArea,
+  };
+}
+
+function nestPartsManualGuillotine({ sheetLength, sheetWidth, kerf, margin, parts, strategy = "frequency", weights = activeManualWeights() }) {
+  const usable = {
+    x: margin,
+    y: margin,
+    width: sheetLength - margin * 2,
+    height: sheetWidth - margin * 2,
+  };
+  const groups = groupParts(expandParts(parts));
+  const sheets = [];
+  const unplaced = [];
+
+  groups.forEach((items, groupKey) => {
+    const [material, thickness] = groupKey.split("::");
+    const groupSheets = [];
+    prepareManualItems(items, usable, groupKey, strategy)
+      .forEach((item) => {
+        const tooLarge = findTooLargeReason(item, usable);
+        if (tooLarge) {
+          unplaced.push({ ...item, reason: tooLarge, groupName: groupLabel(material, thickness) });
+          return;
+        }
+
+        let placed = false;
+        for (const sheet of groupSheets) {
+          const placement = placeOnManualSheet(sheet, item, kerf, weights);
+          if (placement) {
+            sheet.placements.push(placement);
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          const sheet = createManualSheet(sheets.length + groupSheets.length + 1, usable, sheetLength, sheetWidth, material, thickness);
+          const placement = placeOnManualSheet(sheet, item, kerf, weights);
+          if (placement) {
+            sheet.placements.push(placement);
+            groupSheets.push(sheet);
+          } else {
+            unplaced.push({ ...item, reason: "\u65e0\u6cd5\u6309\u63a8\u53f0\u952f\u6761\u6599\u5206\u5207\u653e\u7f6e", groupName: groupLabel(material, thickness) });
+          }
+        }
+      });
+    groupSheets.forEach(updateManualFreeRects);
+    sheets.push(...groupSheets);
+  });
+
+  sheets.forEach((sheet, index) => {
+    sheet.index = index + 1;
+  });
+  return buildStats(sheets, unplaced, sheetLength, sheetWidth);
+}
+
+function prepareManualItems(items, usable, groupKey, strategy = "frequency") {
+  const enriched = items.map((item, index) => {
+    const candidates = manualOrientationCandidates(item, usable);
+    const preferred = candidates[0] || { width: item.length, height: item.width, rotated: false };
+    return {
+      ...item,
+      instanceId: `${groupKey}-${index + 1}`,
+      manualPreferredWidth: preferred.width,
+      manualPreferredHeight: preferred.height,
+      manualRotatedPreferred: preferred.rotated,
+    };
+  });
+  const heightFrequency = new Map();
+  const widthFrequency = new Map();
+  enriched.forEach((item) => {
+    const heightKey = manualDimensionKey(item.manualPreferredHeight);
+    const widthKey = manualDimensionKey(item.manualPreferredWidth);
+    heightFrequency.set(heightKey, (heightFrequency.get(heightKey) || 0) + 1);
+    widthFrequency.set(widthKey, (widthFrequency.get(widthKey) || 0) + 1);
+  });
+  return enriched.sort((a, b) => {
+    if (strategy === "frequency") {
+      const freqDiff = (heightFrequency.get(manualDimensionKey(b.manualPreferredHeight)) || 0) -
+        (heightFrequency.get(manualDimensionKey(a.manualPreferredHeight)) || 0);
+      if (freqDiff) return freqDiff;
+    }
+    if (strategy === "batch") {
+      const heightFreqDiff = (heightFrequency.get(manualDimensionKey(b.manualPreferredHeight)) || 0) -
+        (heightFrequency.get(manualDimensionKey(a.manualPreferredHeight)) || 0);
+      if (heightFreqDiff) return heightFreqDiff;
+      const widthFreqDiff = (widthFrequency.get(manualDimensionKey(b.manualPreferredWidth)) || 0) -
+        (widthFrequency.get(manualDimensionKey(a.manualPreferredWidth)) || 0);
+      if (widthFreqDiff) return widthFreqDiff;
+    }
+    if (strategy === "balanced") {
+      const groupScoreDiff = manualBatchScore(b, heightFrequency, widthFrequency) -
+        manualBatchScore(a, heightFrequency, widthFrequency);
+      if (groupScoreDiff) return groupScoreDiff;
+    }
+    if (strategy === "area") {
+      const areaDiff = b.length * b.width - a.length * a.width;
+      if (areaDiff) return areaDiff;
+    }
+    if (strategy === "length") {
+      const lengthFirstDiff = b.manualPreferredWidth - a.manualPreferredWidth;
+      if (lengthFirstDiff) return lengthFirstDiff;
+    }
+    const heightDiff = strategy === "height"
+      ? b.manualPreferredHeight - a.manualPreferredHeight
+      : b.manualPreferredHeight - a.manualPreferredHeight;
+    if (heightDiff) return heightDiff;
+    const lengthDiff = b.manualPreferredWidth - a.manualPreferredWidth;
+    if (lengthDiff) return lengthDiff;
+    return b.length * b.width - a.length * a.width;
+  });
+}
+
+function manualDimensionKey(value) {
+  return Math.round(toNumber(value, 0) / 5) * 5;
+}
+
+function manualBatchScore(item, heightFrequency, widthFrequency) {
+  const heightFreq = heightFrequency.get(manualDimensionKey(item.manualPreferredHeight)) || 0;
+  const widthFreq = widthFrequency.get(manualDimensionKey(item.manualPreferredWidth)) || 0;
+  const areaScore = item.length * item.width / 100000;
+  const noRotateBonus = item.manualRotatedPreferred ? 0 : 0.5;
+  return heightFreq * 4 + widthFreq * 2 + areaScore + noRotateBonus;
+}
+
+function manualOrientationCandidates(item, usable) {
+  const candidates = [{ width: item.length, height: item.width, rotated: false }];
+  if (item.allowRotate && item.length !== item.width) {
+    candidates.push({ width: item.width, height: item.length, rotated: true });
+  }
+  return candidates
+    .filter((candidate) => candidate.width <= usable.width && candidate.height <= usable.height)
+    .sort((a, b) => {
+      const heightDiff = a.height - b.height;
+      if (heightDiff) return heightDiff;
+      const rotateDiff = Number(a.rotated) - Number(b.rotated);
+      if (rotateDiff) return rotateDiff;
+      return b.width - a.width;
+    });
+}
+
+function preferredManualStripHeight(item, usable) {
+  const candidate = manualOrientationCandidates(item, usable)[0] || { height: item.width };
+  return candidate.height;
+}
+
+function preferredManualCutLength(item, usable) {
+  const candidate = manualOrientationCandidates(item, usable)[0] || { width: item.length };
+  return candidate.width;
 }
 
 function groupParts(items) {
@@ -1474,6 +2060,161 @@ function createSheet(index, usable, sheetLength, sheetWidth, material, thickness
   };
 }
 
+function createManualSheet(index, usable, sheetLength, sheetWidth, material, thickness) {
+  return {
+    ...createSheet(index, usable, sheetLength, sheetWidth, material, thickness),
+    usable: { ...usable },
+    strips: [],
+    nextY: usable.y,
+  };
+}
+
+function placeOnManualSheet(sheet, item, kerf, weights = activeManualWeights()) {
+  const candidates = manualOrientationCandidates(item, sheet.usable);
+  const right = sheet.usable.x + sheet.usable.width;
+  const bottom = sheet.usable.y + sheet.usable.height;
+  let best = null;
+
+  sheet.strips.forEach((strip, stripIndex) => {
+    candidates.forEach((candidate) => {
+      if (candidate.height <= strip.height && strip.nextX + candidate.width <= right) {
+        const score = scoreManualPlacement({
+          type: "existing-strip",
+          sheet,
+          strip,
+          candidate,
+          stripIndex,
+          right,
+          bottom,
+          weights,
+        });
+        if (!best || score < best.score) {
+          best = { type: "strip", strip, candidate, score };
+        }
+      }
+    });
+  });
+
+  candidates.forEach((candidate) => {
+    if (sheet.usable.x + candidate.width <= right && sheet.nextY + candidate.height <= bottom) {
+      const score = scoreManualPlacement({
+        type: "new-strip",
+        sheet,
+        candidate,
+        right,
+        bottom,
+        weights,
+      });
+      if (!best || score < best.score) {
+        best = { type: "new-strip", candidate, score };
+      }
+    }
+  });
+
+  if (!best) return null;
+  const strip = best.type === "new-strip"
+    ? createManualStrip(sheet, best.candidate, kerf)
+    : best.strip;
+  const placement = {
+    id: item.instanceId,
+    name: item.name,
+    x: strip.nextX,
+    y: strip.y,
+    width: best.candidate.width,
+    height: best.candidate.height,
+    sourceLength: item.length,
+    sourceWidth: item.width,
+    material: item.material,
+    thickness: item.thickness,
+    allowRotate: item.allowRotate,
+    rotated: best.candidate.rotated,
+    note: item.note,
+    edgeBanding: item.edgeBanding,
+  };
+  strip.nextX += best.candidate.width + kerf;
+  updateManualFreeRects(sheet);
+  return placement;
+}
+
+function createManualStrip(sheet, candidate, kerf) {
+  const strip = {
+    x: sheet.usable.x,
+    y: sheet.nextY,
+    height: candidate.height,
+    nextX: sheet.usable.x,
+  };
+  sheet.strips.push(strip);
+  sheet.nextY += candidate.height + kerf;
+  return strip;
+}
+
+function scoreManualPlacement({ type, sheet, strip, candidate, stripIndex = 0, right, bottom, weights = activeManualWeights() }) {
+  const existingStrip = type === "existing-strip";
+  const stripHeightWaste = existingStrip ? Math.max(0, strip.height - candidate.height) : 0;
+  const remainingLength = existingStrip
+    ? right - (strip.nextX + candidate.width)
+    : right - (sheet.usable.x + candidate.width);
+  const remainingHeight = existingStrip ? bottom - (strip.y + strip.height) : bottom - (sheet.nextY + candidate.height);
+  const reusableLengthBonus = reusableScore(remainingLength, existingStrip ? strip.height : candidate.height);
+  const reusableHeightBonus = existingStrip ? 0 : reusableScore(sheet.usable.width, remainingHeight);
+  const newStripPenalty = existingStrip ? 0 : weights.fenceChanges * 800;
+  const heightWastePenalty = stripHeightWaste * weights.fenceChanges;
+  const lengthWastePenalty = Math.max(0, remainingLength) * weights.materialYield * 0.08;
+  const sheetHeightPenalty = Math.max(0, remainingHeight) * weights.sheetCount * 0.03;
+  const rotationPenalty = candidate.rotated ? weights.rotation * 120 : 0;
+  const cutLengthPenalty = candidate.width * weights.cutLength * 0.01;
+  const sameStripHeightBonus = existingStrip && Math.abs(strip.height - candidate.height) <= 2 ? weights.fenceChanges * 65 : 0;
+  const stripTailFillBonus = existingStrip && remainingLength >= 0 && remainingLength <= offcutRules.filledTailLimit ? weights.materialYield * 45 : 0;
+  const awkwardTailPenalty = existingStrip && remainingLength > offcutRules.filledTailLimit && remainingLength < offcutRules.shortTailLimit ? weights.materialYield * 70 : 0;
+  const fragmentedBelowPenalty = !existingStrip && remainingHeight > 0 && remainingHeight < offcutRules.shortTailLimit ? weights.reusableOffcut * 85 : 0;
+  const regularBelowBonus = !existingStrip && remainingHeight >= offcutRules.minBelowRegular ? weights.reusableOffcut * 35 : 0;
+  const reusableBonus = (reusableLengthBonus + reusableHeightBonus) * weights.reusableOffcut;
+  return newStripPenalty +
+    heightWastePenalty +
+    lengthWastePenalty +
+    sheetHeightPenalty +
+    awkwardTailPenalty +
+    fragmentedBelowPenalty +
+    rotationPenalty +
+    cutLengthPenalty +
+    stripIndex * 0.1 -
+    sameStripHeightBonus -
+    stripTailFillBonus -
+    regularBelowBonus -
+    reusableBonus;
+}
+
+function reusableScore(width, height) {
+  if (width < offcutRules.minKeepSide || height < offcutRules.minKeepSide || width * height < offcutRules.minKeepArea) return 0;
+  return Math.min(100, (width * height) / 100000);
+}
+
+function updateManualFreeRects(sheet) {
+  const right = sheet.usable.x + sheet.usable.width;
+  const bottom = sheet.usable.y + sheet.usable.height;
+  const rects = [];
+  sheet.strips.forEach((strip) => {
+    const remainingWidth = right - strip.nextX;
+    if (remainingWidth > 0) {
+      rects.push({
+        x: strip.nextX,
+        y: strip.y,
+        width: remainingWidth,
+        height: strip.height,
+      });
+    }
+  });
+  if (sheet.nextY < bottom) {
+    rects.push({
+      x: sheet.usable.x,
+      y: sheet.nextY,
+      width: sheet.usable.width,
+      height: bottom - sheet.nextY,
+    });
+  }
+  sheet.freeRects = rects.filter((rect) => rect.width > 0 && rect.height > 0);
+}
+
 function placeOnSheet(sheet, item, kerf) {
   const candidates = [{ width: item.length, height: item.width, rotated: false }];
   if (item.allowRotate && item.length !== item.width) {
@@ -1507,6 +2248,7 @@ function placeOnSheet(sheet, item, kerf) {
     sourceWidth: item.width,
     material: item.material,
     thickness: item.thickness,
+    allowRotate: item.allowRotate,
     rotated: candidate.rotated,
     note: item.note,
     edgeBanding: item.edgeBanding,
@@ -1602,10 +2344,8 @@ function buildStats(sheets, unplaced, sheetLength, sheetWidth) {
 }
 
 function collectReusableOffcuts(sheets) {
-  const minSide = 120;
-  const minArea = 120 * 300;
   return sheets.flatMap((sheet) => sheet.freeRects
-    .filter((rect) => rect.width >= minSide && rect.height >= minSide && rect.width * rect.height >= minArea)
+    .filter((rect) => rect.width >= offcutRules.minKeepSide && rect.height >= offcutRules.minKeepSide && rect.width * rect.height >= offcutRules.minKeepArea)
     .map((rect, index) => ({
       sheetIndex: sheet.index,
       code: `O${sheet.index}-${String(index + 1).padStart(2, "0")}`,
@@ -1649,6 +2389,7 @@ function loadSelectedSampleOrder() {
     material: sample.material,
     kerf: sample.kerf,
     margin: sample.margin,
+    cuttingMode: sample.cuttingMode || "manual",
     parts: structuredClone(sample.parts).map(normalizePart),
     result: null,
   };
@@ -1675,13 +2416,26 @@ function uniqueStockPresets(presets) {
 
 function renderStockPresets() {
   const presets = getStockPresets();
+  const html = stockPresetOptionsHtml(presets);
+  els.stockPresetSelect.innerHTML = html;
+  if (els.quickStockPresetSelect) els.quickStockPresetSelect.innerHTML = quickStockPresetOptionsHtml();
+  syncStockPresetSelects();
+}
+
+function quickStockPresetOptionsHtml() {
+  return quickStockSizeOptions.map((item) => {
+    return `<option value="${escapeAttr(item.id)}">${escapeHtml(item.label)}</option>`;
+  }).join("");
+}
+
+function stockPresetOptionsHtml(presets) {
   const groups = new Map();
   presets.forEach((preset) => {
     const category = preset.category || "\u81ea\u5b9a\u4e49\u677f\u6750";
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(preset);
   });
-  els.stockPresetSelect.innerHTML = [...groups.entries()].map(([category, items]) => {
+  return [...groups.entries()].map(([category, items]) => {
     const options = items.map((preset) => {
       const label = `${preset.name} ${preset.length}x${preset.width}x${preset.thickness} ${preset.material}`;
       return `<option value="${escapeAttr(preset.id)}">${escapeHtml(label)}</option>`;
@@ -1690,15 +2444,58 @@ function renderStockPresets() {
   }).join("");
 }
 
-function applySelectedStockPreset() {
+function syncStockPresetSelects(presetId = findMatchingStockPresetId(), quickValue = findMatchingQuickStockValue(presetId)) {
+  if (presetId && els.stockPresetSelect) els.stockPresetSelect.value = presetId;
+  if (quickValue && els.quickStockPresetSelect) els.quickStockPresetSelect.value = quickValue;
+}
+
+function findMatchingStockPresetId() {
   const presets = getStockPresets();
-  const preset = presets.find((item) => item.id === els.stockPresetSelect.value);
+  const match = presets.find((item) => {
+    return item.length === state.sheetLength &&
+      item.width === state.sheetWidth &&
+      item.thickness === state.sheetThickness &&
+      item.material === state.material;
+  });
+  return match?.id || presets[0]?.id || "";
+}
+
+function findMatchingQuickStockValue(presetId = findMatchingStockPresetId()) {
+  const sizeMatch = quickStockSizeOptions.find((item) => {
+    return item.length === state.sheetLength && item.width === state.sheetWidth;
+  });
+  return sizeMatch?.id || presetId;
+}
+
+function applySelectedStockPreset(select = els.stockPresetSelect) {
+  if (select === els.quickStockPresetSelect) {
+    applySelectedQuickStockChoice();
+    return;
+  }
+  const presets = getStockPresets();
+  const preset = presets.find((item) => item.id === select?.value);
   if (!preset) return;
   state.sheetLength = preset.length;
   state.sheetWidth = preset.width;
   state.sheetThickness = preset.thickness;
   state.material = preset.material;
   writeSettings();
+  syncStockPresetSelects(preset.id);
+  markResultDirty();
+  renderPartsSummary();
+  renderDesigner();
+  syncQuotePresetSuggestion();
+  renderQuoteSummary(state.parts);
+}
+
+function applySelectedQuickStockChoice() {
+  const value = els.quickStockPresetSelect?.value || "";
+  const size = quickStockSizeOptions.find((item) => item.id === value);
+  if (!size) return;
+  state.sheetLength = size.length;
+  state.sheetWidth = size.width;
+  writeSettings();
+  syncStockPresetSelects(findMatchingStockPresetId(), value);
   markResultDirty();
   renderPartsSummary();
   renderDesigner();
@@ -1720,7 +2517,7 @@ function saveCurrentStockPreset() {
   };
   localStorage.setItem(STOCK_PRESETS_KEY, JSON.stringify([...custom, preset]));
   renderStockPresets();
-  els.stockPresetSelect.value = preset.id;
+  syncStockPresetSelects(preset.id);
 }
 
 function getCustomStockPresets() {
@@ -1748,6 +2545,8 @@ function snapshotCurrentOrder() {
     material: state.material,
     kerf: state.kerf,
     margin: state.margin,
+    cuttingMode: state.cuttingMode || "manual",
+    manualWeights: { ...activeManualWeights() },
     parts: state.parts.map(normalizePart),
     quote: {
       totalSheets: quote.totalSheets,
@@ -1819,6 +2618,7 @@ function saveCurrentOrderHistory() {
     snapshot,
   };
   localStorage.setItem(key, JSON.stringify([entry, ...history].slice(0, 20)));
+  activeHistoryId = entry.id;
   renderOrderHistory();
 }
 
@@ -1845,8 +2645,9 @@ function renderOrderHistory() {
     const quotePrice = Number(snapshot.quote?.suggestedPrice || 0);
     const dueDate = formatDueDate(snapshot.orderDueDate);
     const dueState = orderDueState(snapshot.orderDueDate, status);
+    const activeClass = entry.id === activeHistoryId ? "is-active" : "";
     return `
-      <div class="history-item ${simpleMode ? "history-item-simple" : ""} ${dueState.className}" data-history-id="${escapeAttr(entry.id)}">
+      <div class="history-item ${simpleMode ? "history-item-simple" : ""} ${dueState.className} ${activeClass}" data-history-id="${escapeAttr(entry.id)}">
         <div>
           <strong>${escapeHtml(snapshot.historyName || snapshot.orderName || text.unnamedOrder)}</strong>
           ${simpleMode ? "" : `<span>${escapeHtml(snapshot.customerName || "-")} | ${partCount} \u4ef6 | ${moneyText(quotePrice)} | \u4ea4\u671f ${escapeHtml(dueDate)}${dueState.label ? ` | ${dueState.label}` : ""} | ${savedAt}</span>`}
@@ -1965,11 +2766,14 @@ function orderDueState(value, status) {
 function loadOrderHistory(id) {
   const entry = getOrderHistory().find((item) => item.id === id);
   if (!entry || !entry.snapshot) return;
+  activeHistoryId = id;
   state = {
     ...state,
     ...entry.snapshot,
     orderStatus: entry.snapshot.orderStatus || "quote",
     orderDueDate: entry.snapshot.orderDueDate || "",
+    cuttingMode: entry.snapshot.cuttingMode || "manual",
+    manualWeights: { ...manualCutWeights, ...(entry.snapshot.manualWeights || {}) },
     parts: (entry.snapshot.parts || []).map(normalizePart),
     result: null,
   };
@@ -1980,6 +2784,7 @@ function deleteOrderHistory(id) {
   const key = activeHistoryKey();
   const history = getOrderHistory(key).filter((item) => item.id !== id);
   localStorage.setItem(key, JSON.stringify(history));
+  if (activeHistoryId === id) activeHistoryId = "";
   renderOrderHistory();
 }
 
@@ -2024,6 +2829,7 @@ function renderResult() {
     ${statCard("\u5229\u7528\u7387", (result.stats.utilizationRate * 100).toFixed(1), "%", `${areaText(result.stats.usedArea)} / ${areaText(result.stats.totalArea)}`)}
     ${statCard("\u53ef\u4fdd\u7559\u4f59\u6599", result.stats.reusableOffcutCount, "\u5757", areaText(result.stats.wasteArea))}
     ${statCard("\u677f\u6750\u5206\u7c7b", result.stats.groupCount, "\u7c7b")}
+    ${appMode === "pro" ? statCard("\u5f00\u6599\u6a21\u5f0f", "", cuttingModeLabel(result.cuttingMode), result.algorithmNote || "") : ""}
   `;
   els.warnings.innerHTML = renderWarnings(result);
   els.cutList.innerHTML = renderCutList(result);
@@ -2078,6 +2884,7 @@ function renderCutList(result, options = {}) {
       <td>${escapeHtml(row.name)}</td>
       <td>${row.sourceLength}x${row.sourceWidth}</td>
       <td>${Math.round(row.x)}, ${Math.round(row.y)}</td>
+      <td>${row.allowRotate ? text.yes : text.no}</td>
       <td>${row.rotated ? text.yes : text.no}</td>
       <td>${escapeHtml(row.edgeBanding || "")}</td>
       <td>${escapeHtml(row.note || "")}</td>
@@ -2088,7 +2895,7 @@ function renderCutList(result, options = {}) {
     <div class="review-list">
       <span>\u590d\u6838 1\uff1a\u677f\u6750\u89c4\u683c ${state.sheetLength}x${state.sheetWidth}</span>
       <span>\u590d\u6838 2\uff1a\u952f\u7f1d ${state.kerf}mm\uff0c\u8fb9\u8ddd ${state.margin}mm</span>
-      <span>\u590d\u6838 3\uff1a\u4e0d\u53ef\u65cb\u8f6c\u677f\u4ef6\u9700\u68c0\u67e5\u7eb9\u7406\u65b9\u5411</span>
+      <span>\u590d\u6838 3\uff1a\u7981\u6b62\u65cb\u8f6c\u677f\u4ef6\u9700\u68c0\u67e5\u7eb9\u7406\u65b9\u5411</span>
     </div>
     <table>
       <thead>
@@ -2101,6 +2908,7 @@ function renderCutList(result, options = {}) {
           <th>\u5c3a\u5bf8</th>
           <th>\u5de6\u4e0a\u5750\u6807</th>
           <th>\u65cb\u8f6c</th>
+          <th>\u5b9e\u9645\u65cb\u8f6c</th>
           <th>\u5c01\u8fb9</th>
           <th>\u5907\u6ce8</th>
         </tr>
@@ -2334,7 +3142,7 @@ function renderPrintablePartsList() {
           <th>\u6750\u8d28</th>
           <th>\u539a\u5ea6</th>
           <th>\u5c01\u8fb9</th>
-          <th>\u53ef\u65cb\u8f6c</th>
+          <th>\u65cb\u8f6c</th>
           <th>\u5907\u6ce8</th>
         </tr>
       </thead>
@@ -2553,7 +3361,18 @@ function openLayoutFullscreen() {
     alert("\u8bf7\u5148\u81ea\u52a8\u6392\u6599\u3002");
     return;
   }
+  if (els.layoutDialogTitle) els.layoutDialogTitle.textContent = "\u6392\u6599\u56fe\u653e\u5927\u67e5\u770b";
   els.layoutDialogContent.innerHTML = state.result.sheets.map(renderFullscreenSheet).join("");
+  els.layoutDialog.showModal();
+}
+
+function openCutSequenceDialog() {
+  if (!state.result) {
+    alert("\u8bf7\u5148\u81ea\u52a8\u6392\u6599\u3002");
+    return;
+  }
+  if (els.layoutDialogTitle) els.layoutDialogTitle.textContent = "\u5f00\u6599\u987a\u5e8f\u56fe";
+  els.layoutDialogContent.innerHTML = renderCutSequenceView(state.result);
   els.layoutDialog.showModal();
 }
 
@@ -2562,6 +3381,367 @@ function printLayoutDialog() {
   document.body.classList.add("print-layout-dialog");
   window.print();
   setTimeout(() => document.body.classList.remove("print-layout-dialog"), 250);
+}
+
+function renderCutSequenceView(result) {
+  const mode = result.cuttingMode || "manual";
+  const sheetSequences = result.sheets.map((sheet) => ({
+    sheet,
+    steps: sequenceStepsForMode(sheet, mode),
+  }));
+  const totalSteps = sheetSequences.reduce((sum, item) => sum + item.steps.length, 0);
+  const cutCost = mode === "cnc" ? 0 : totalSteps * toNumber(activeCutWeights(mode).cutPrice, 5);
+  const guideItems = sequenceGuideItems(mode);
+  return `
+    <section class="cut-sequence-view">
+      <div class="sequence-summary">
+        <span>${escapeHtml(cuttingModeLabel(mode))}</span>
+        <span>${result.sheets.length}\u5f20\u677f | ${totalSteps}\u5200 | \u952f\u7f1d${state.kerf}mm</span>
+        ${mode !== "cnc" ? `<span>\u4f30\u7b97\u5f00\u5200\u8d39 \u00a5${Math.round(cutCost)}</span>` : ""}
+        <span>${escapeHtml(result.algorithmNote || "")}</span>
+      </div>
+      ${renderSequenceWeightPanel(result)}
+      <div class="sequence-guide">
+        ${guideItems.map((item, index) => `<div><b>${index + 1}</b><span>${escapeHtml(item)}</span></div>`).join("")}
+      </div>
+      <div class="sequence-legend">
+        <span><i class="legend-strip"></i>\u957f\u6761/\u8d2f\u901a\u5207</span>
+        <span><i class="legend-part"></i>\u677f\u4ef6/\u5206\u5207</span>
+        <span><i class="legend-offcut"></i>\u53ef\u4fdd\u7559\u4f59\u6599</span>
+        <span><i class="legend-index"></i>\u5706\u70b9\u6570\u5b57=\u5f00\u5200\u987a\u5e8f</span>
+      </div>
+      ${sheetSequences.map(({ sheet, steps }) => renderSheetCutSequence(sheet, mode, steps)).join("")}
+    </section>
+  `;
+}
+
+function sequenceStepsForMode(sheet, mode) {
+  if (mode === "cnc") return cncSequenceSteps(sheet);
+  if (mode === "beam") return beamSequenceSteps(sheet);
+  return manualSequenceSteps(sheet);
+}
+
+function sequenceGuideItems(mode) {
+  if (mode === "cnc") {
+    return ["\u6309\u677f\u4ef6\u8f6e\u5ed3\u8def\u5f84\u52a0\u5de5", "\u540c\u6750\u8d28/\u539a\u5ea6\u8fde\u7eed\u52a0\u5de5", "\u6309\u6807\u7b7e\u5206\u62e3\u5e76\u590d\u6838\u5b54\u69fd"];
+  }
+  if (mode === "beam") {
+    return ["\u5148\u6309\u6279\u91cf\u5bbd\u5ea6\u8d2f\u901a\u5207", "\u518d\u6309\u540c\u5c3a\u5bf8\u96c6\u4e2d\u622a\u65ad", "\u6309\u6279\u6b21\u5806\u53e0/\u8d34\u6807"];
+  }
+  return ["\u5148\u7eb5\u5411\u5f00\u957f\u6761", "\u518d\u6761\u5185\u6a2a\u5411\u5206\u5207", "\u6309\u677f\u4ef6\u7f16\u53f7\u8d34\u6807/\u5206\u62e3"];
+}
+
+function renderSequenceWeightPanel(result) {
+  if (!result.weightAnalysis || !result.weightAnalysis.length) return "";
+  return `
+    <div class="sequence-weight-panel">
+      <strong>\u6392\u6599\u6743\u91cd</strong>
+      ${result.algorithmStrategy ? `<span>\u7b56\u7565 ${escapeHtml(result.algorithmStrategy)}</span>` : ""}
+      ${result.weightAnalysis.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+    </div>
+  `;
+}
+
+function renderSheetCutSequence(sheet, mode, steps) {
+  const stripCount = mode === "cnc" ? steps.length : steps.filter((step) => step.type === "strip").length;
+  const partCount = steps.filter((step) => step.type === "part").length;
+  const stripLabel = mode === "beam" ? "\u6279\u91cf\u8d2f\u901a\u5207" : (mode === "cnc" ? "\u8def\u5f84" : "\u957f\u6761");
+  return `
+    <article class="cut-sequence-sheet" style="border-color:${groupColor(sheet.material, sheet.thickness)}">
+      <div class="sheet-head">
+        <div>
+          <strong>${text.sheet} ${sheet.index} ${text.sheetSuffix}</strong>
+          <span>${steps.length}\u6b65</span>
+        </div>
+        <span>${groupPill(sheet.material, sheet.thickness)} | ${sheet.length}x${sheet.width} mm</span>
+      </div>
+      <div class="sequence-sheet-brief">
+        <span>${stripLabel} ${stripCount}\u6761</span>
+        <span>\u677f\u4ef6 ${partCount}\u4ef6</span>
+        <span>\u56fe\u4e0a\u6570\u5b57=\u5f00\u5200\u987a\u5e8f\uff0c\u6309\u8868\u683c\u9010\u5200\u64cd\u4f5c</span>
+      </div>
+      ${sequenceSvg(sheet, steps, sequenceOffcutsForSheet(sheet))}
+      ${renderSequenceTable(steps)}
+      ${renderSequencePartCodeTable(sheet)}
+      ${renderSequenceOffcutCodeTable(sheet)}
+    </article>
+  `;
+}
+
+function manualSequenceSteps(sheet) {
+  const strips = sheet.strips && sheet.strips.length
+    ? sheet.strips
+    : inferManualStrips(sheet);
+  const steps = [];
+  strips.forEach((strip, stripIndex) => {
+    const stripParts = sheet.placements
+      .filter((item) => Math.abs(item.y - strip.y) < 1)
+      .sort((a, b) => a.x - b.x);
+    const stripPartCodes = stripParts.map((part) => codeFor(sheet.index, sheet.placements.indexOf(part))).join(", ");
+    const stripTailWidth = manualStripTailWidth(sheet, strip);
+    const tailText = stripTailWidth >= offcutRules.minKeepSide
+      ? `\uff0c\u6761\u5c3e\u53ef\u7559${Math.round(stripTailWidth)}x${Math.round(strip.height)}mm`
+      : (stripTailWidth > 0 ? `\uff0c\u6761\u5c3e${Math.round(stripTailWidth)}mm\u4f5c\u635f\u8017` : "\uff0c\u672c\u6761\u7528\u5c3d");
+    steps.push({
+      type: "strip",
+      label: `\u7b2c${steps.length + 1}\u5200`,
+      phase: "\u5f00\u957f\u6761",
+      action: "\u7eb5\u5411\u8d2f\u901a\u5207",
+      target: `\u6761\u6599${stripIndex + 1}`,
+      detail: `\u5148\u5f00${Math.round(strip.height)}mm\u5bbd\u957f\u6761\uff0c\u5305\u542b ${stripPartCodes || "-"}${tailText}`,
+      x: sheet.usable ? sheet.usable.x : state.margin,
+      y: strip.y,
+      width: sheet.usable ? sheet.usable.width : sheet.length - state.margin * 2,
+      height: strip.height,
+    });
+    stripParts.forEach((part) => {
+      steps.push({
+        type: "part",
+        label: `\u7b2c${steps.length + 1}\u5200`,
+        phase: "\u6761\u5185\u5206\u5207",
+        action: "\u6a2a\u5411\u622a\u65ad",
+        target: codeFor(sheet.index, sheet.placements.indexOf(part)),
+        detail: `${part.name}\uff1a${part.sourceLength}x${part.sourceWidth}mm${part.rotated ? "\uff0c\u65cb\u8f6c" : ""}`,
+        x: part.x,
+        y: part.y,
+        width: part.width,
+        height: part.height,
+      });
+    });
+  });
+  return steps;
+}
+
+function manualStripTailWidth(sheet, strip) {
+  const right = sheet.usable ? sheet.usable.x + sheet.usable.width : sheet.length - state.margin;
+  return Math.max(0, right - strip.nextX);
+}
+
+function beamSequenceSteps(sheet) {
+  const strips = sheet.strips && sheet.strips.length
+    ? sheet.strips
+    : inferManualStrips(sheet);
+  const steps = [];
+  strips.forEach((strip, stripIndex) => {
+    const stripParts = sheet.placements
+      .filter((item) => Math.abs(item.y - strip.y) < 1)
+      .sort((a, b) => a.x - b.x);
+    const sizeGroups = new Map();
+    stripParts.forEach((part) => {
+      const key = `${part.sourceLength}x${part.sourceWidth}`;
+      if (!sizeGroups.has(key)) sizeGroups.set(key, []);
+      sizeGroups.get(key).push(part);
+    });
+    const batchText = [...sizeGroups.entries()].map(([size, parts]) => `${size}\u00d7${parts.length}`).join(" / ");
+    const stripTailWidth = manualStripTailWidth(sheet, strip);
+    steps.push({
+      type: "strip",
+      label: `\u7b2c${steps.length + 1}\u5200`,
+      phase: "\u6279\u91cf\u8d2f\u901a\u5207",
+      action: "\u7535\u5b50\u952f\u5b9a\u4f4d\u7eb5\u5207",
+      target: `\u6279\u6b21${stripIndex + 1}`,
+      detail: `\u9760\u5c3a\u5b9a\u4f4d${Math.round(strip.height)}mm\uff0c\u6279\u91cf\uff1a${batchText || "-"}${stripTailWidth >= offcutRules.minKeepSide ? `\uff0c\u5c3e\u6599${Math.round(stripTailWidth)}x${Math.round(strip.height)}mm` : ""}`,
+      x: sheet.usable ? sheet.usable.x : state.margin,
+      y: strip.y,
+      width: sheet.usable ? sheet.usable.width : sheet.length - state.margin * 2,
+      height: strip.height,
+    });
+    stripParts.forEach((part) => {
+      steps.push({
+        type: "part",
+        label: `\u7b2c${steps.length + 1}\u5200`,
+        phase: "\u6279\u5185\u622a\u65ad",
+        action: "\u81ea\u52a8\u9760\u5c3a\u6a2a\u5207",
+        target: codeFor(sheet.index, sheet.placements.indexOf(part)),
+        detail: `${part.name}\uff1a${part.sourceLength}x${part.sourceWidth}mm\uff0c\u6279\u6b21${stripIndex + 1}`,
+        x: part.x,
+        y: part.y,
+        width: part.width,
+        height: part.height,
+      });
+    });
+  });
+  return steps;
+}
+
+function inferManualStrips(sheet) {
+  const map = new Map();
+  sheet.placements.forEach((item) => {
+    const key = String(Math.round(item.y));
+    const current = map.get(key) || { y: item.y, height: item.height };
+    current.height = Math.max(current.height, item.height);
+    map.set(key, current);
+  });
+  return [...map.values()].sort((a, b) => a.y - b.y);
+}
+
+function cncSequenceSteps(sheet) {
+  return sheet.placements
+    .slice()
+    .sort((a, b) => (a.y - b.y) || (a.x - b.x))
+    .map((part, index) => ({
+    type: "part",
+    label: `\u7b2c${index + 1}\u5200`,
+    phase: "\u8f6e\u5ed3\u8def\u5f84",
+    action: "\u81ea\u7531\u8f6e\u5ed3\u5207\u5272",
+    target: codeFor(sheet.index, sheet.placements.indexOf(part)),
+    detail: `${part.name}\uff1a${part.sourceLength}x${part.sourceWidth}mm${part.rotated ? "\uff0c\u5b9e\u9645\u65cb\u8f6c" : ""}`,
+    x: part.x,
+    y: part.y,
+    width: part.width,
+    height: part.height,
+  }));
+}
+
+function sequenceOffcutsForSheet(sheet) {
+  return state.result ? state.result.reusableOffcuts.filter((item) => item.sheetIndex === sheet.index) : [];
+}
+
+function sequenceSvg(sheet, steps, offcuts = []) {
+  const colors = { strip: "rgba(36,107,254,0.16)", part: "rgba(12,143,87,0.2)" };
+  const marks = steps.map((step, index) => sequenceStepMark(step, index, colors)).join("");
+  const offcutMarks = offcuts.map((item) => {
+    const fontSize = Math.max(12, Math.min(18, Math.min(item.width, item.height) / 8));
+    return `
+      <g>
+        <rect x="${item.x}" y="${item.y}" width="${item.width}" height="${item.height}" fill="rgba(245,158,11,0.18)" stroke="#b75f00" stroke-width="3" stroke-dasharray="18 10" />
+        <text x="${item.x + item.width / 2}" y="${item.y + item.height / 2 - 8}" text-anchor="middle" font-size="${fontSize}" font-weight="800" fill="#92400e">${escapeHtml(item.code)}</text>
+        <text x="${item.x + item.width / 2}" y="${item.y + item.height / 2 + 14}" text-anchor="middle" font-size="${Math.max(12, fontSize - 2)}" fill="#92400e">${item.width}x${item.height}</text>
+      </g>
+    `;
+  }).join("");
+  return `
+    <svg class="sheet-svg sequence-svg" viewBox="0 0 ${sheet.length} ${sheet.width}" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="${sheet.length}" height="${sheet.width}" fill="#ffffff" />
+      <rect x="${state.margin}" y="${state.margin}" width="${sheet.length - state.margin * 2}" height="${sheet.width - state.margin * 2}" fill="none" stroke="#9aa6b6" stroke-width="2" stroke-dasharray="12 10" />
+      ${marks}
+      ${offcutMarks}
+    </svg>
+  `;
+}
+
+function sequenceStepMark(step, index, colors) {
+  const stroke = step.type === "strip" ? "#246bfe" : "#0c8f57";
+  const dash = step.type === "strip" ? "18 10" : "0";
+  const labelX = step.x + Math.min(76, Math.max(42, step.width / 2));
+  const labelY = Math.max(24, step.y + Math.min(26, step.height / 2));
+  const cutLine = step.type === "strip"
+    ? `<line x1="${step.x}" y1="${step.y + step.height}" x2="${step.x + step.width}" y2="${step.y + step.height}" stroke="#246bfe" stroke-width="4" stroke-dasharray="22 10" />`
+    : `<line x1="${step.x + step.width}" y1="${step.y}" x2="${step.x + step.width}" y2="${step.y + step.height}" stroke="#0c8f57" stroke-width="4" stroke-dasharray="12 8" />`;
+  const labelWidth = 118;
+  return `
+    <g>
+      <rect x="${step.x}" y="${step.y}" width="${step.width}" height="${step.height}" fill="${colors[step.type] || "rgba(217,232,255,0.35)"}" stroke="${stroke}" stroke-width="3" stroke-dasharray="${dash}" />
+      ${cutLine}
+      <rect class="sequence-cut-label-bg" x="${labelX - labelWidth / 2}" y="${labelY - 18}" width="${labelWidth}" height="28" rx="5" fill="#111827" />
+      <text x="${labelX}" y="${labelY + 1}" text-anchor="middle" font-size="16" font-weight="800" fill="#fff">\u7b2c${index + 1}\u5200</text>
+      ${step.type === "part" ? `<text x="${step.x + step.width / 2}" y="${step.y + step.height / 2 - 8}" text-anchor="middle" font-size="${sequenceLabelFontSize(step)}" font-weight="700" fill="#111827">${escapeHtml(compactSequenceLabel(step))}</text><text x="${step.x + step.width / 2}" y="${step.y + step.height / 2 + 14}" text-anchor="middle" font-size="${Math.max(12, sequenceLabelFontSize(step) - 2)}" fill="#475569">${Math.round(step.width)}x${Math.round(step.height)}</text>` : `<text x="${step.x + step.width / 2}" y="${step.y + step.height / 2 + 8}" text-anchor="middle" font-size="${Math.max(13, Math.min(20, step.height / 7))}" font-weight="800" fill="#1d4ed8">${Math.round(step.height)}mm\u6761\u6599</text>`}
+    </g>
+  `;
+}
+
+function sequenceLabelFontSize(step) {
+  return Math.max(12, Math.min(18, Math.min(step.width, step.height) / 8));
+}
+
+function compactSequenceLabel(step) {
+  const target = String(step.target || "");
+  return target.length > 10 ? `${target.slice(0, 10)}...` : target;
+}
+
+function renderSequenceTable(steps) {
+  return `
+    <table class="fullscreen-part-table sequence-table">
+      <thead>
+        <tr>
+          <th>\u987a\u5e8f</th>
+          <th>\u9636\u6bb5</th>
+          <th>\u64cd\u4f5c</th>
+          <th>\u76ee\u6807</th>
+          <th>\u5c3a\u5bf8</th>
+          <th>\u4f4d\u7f6e</th>
+          <th>\u8bf4\u660e</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${steps.map((step) => `
+          <tr>
+            <td>${escapeHtml(step.label)}</td>
+            <td><span class="sequence-phase ${step.type === "strip" ? "is-strip" : "is-part"}">${escapeHtml(step.phase || "")}</span></td>
+            <td>${escapeHtml(step.action)}</td>
+            <td>${escapeHtml(step.target || "")}</td>
+            <td>${Math.round(step.width)}x${Math.round(step.height)}</td>
+            <td>${Math.round(step.x)}, ${Math.round(step.y)}</td>
+            <td>${escapeHtml(step.detail)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderSequencePartCodeTable(sheet) {
+  const rows = sheet.placements.map((item, index) => `
+    <tr>
+      <td>${codeFor(sheet.index, index)}</td>
+      <td>${partCodeFor(globalPartIndex(sheet.index, index))}</td>
+      <td>${escapeHtml(item.name)}</td>
+      <td>${item.sourceLength}x${item.sourceWidth}</td>
+      <td>${Math.round(item.x)}, ${Math.round(item.y)}</td>
+      <td>${item.allowRotate ? text.yes : text.no}</td>
+      <td>${escapeHtml(item.edgeBanding || "-")}</td>
+      <td>${escapeHtml(item.note || "")}</td>
+    </tr>
+  `).join("");
+  return `
+    <h4 class="sequence-subtitle">\u677f\u4ef6\u7f16\u7801\u6838\u5bf9</h4>
+    <table class="fullscreen-part-table sequence-code-table">
+      <thead>
+        <tr>
+          <th>\u677f\u4ef6\u7f16\u7801</th>
+          <th>\u677f\u4ef6\u5e8f\u53f7</th>
+          <th>\u540d\u79f0</th>
+          <th>\u5c3a\u5bf8</th>
+          <th>\u5750\u6807</th>
+          <th>\u65cb\u8f6c</th>
+          <th>\u5c01\u8fb9</th>
+          <th>\u5907\u6ce8</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function renderSequenceOffcutCodeTable(sheet) {
+  const offcuts = state.result ? state.result.reusableOffcuts.filter((item) => item.sheetIndex === sheet.index) : [];
+  if (!offcuts.length) {
+    return `<div class="empty sequence-empty">\u672c\u677f\u65e0\u53ef\u4fdd\u7559\u4f59\u6599</div>`;
+  }
+  const rows = offcuts.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.code)}</td>
+      <td>${partCodeFor(globalOffcutIndex(item.code))}</td>
+      <td>${escapeHtml(groupLabel(item.material, item.thickness))}</td>
+      <td>${item.width}x${item.height}</td>
+      <td>${item.x}, ${item.y}</td>
+    </tr>
+  `).join("");
+  return `
+    <h4 class="sequence-subtitle">\u4f59\u6599\u7f16\u7801\u6838\u5bf9</h4>
+    <table class="fullscreen-part-table sequence-code-table">
+      <thead>
+        <tr>
+          <th>\u4f59\u6599\u7f16\u53f7</th>
+          <th>\u4f59\u6599\u5e8f\u53f7</th>
+          <th>\u6750\u8d28/\u539a\u5ea6</th>
+          <th>\u5c3a\u5bf8</th>
+          <th>\u5750\u6807</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
 }
 
 function renderFullscreenSheet(sheet) {
@@ -2596,7 +3776,7 @@ function renderSheetPartTable(sheet) {
       <td>${escapeHtml(item.name)}</td>
       <td>${item.sourceLength}x${item.sourceWidth}</td>
       <td>${Math.round(item.x)}, ${Math.round(item.y)}</td>
-      <td>${item.rotated ? text.yes : text.no}</td>
+      <td>${item.allowRotate ? text.yes : text.no}</td>
       <td>${escapeHtml(item.edgeBanding || "")}</td>
       <td>${escapeHtml(item.note || "")}</td>
     </tr>
@@ -2751,7 +3931,7 @@ function loadLocal() {
 
 function exportCsv() {
   readSettings();
-  const header = ["\u540d\u79f0", "\u957f\u5ea6", "\u5bbd\u5ea6", "\u6570\u91cf", "\u6750\u8d28", "\u539a\u5ea6", "\u5c01\u8fb9", "\u53ef\u65cb\u8f6c", "\u5907\u6ce8"];
+  const header = ["\u540d\u79f0", "\u957f\u5ea6", "\u5bbd\u5ea6", "\u6570\u91cf", "\u6750\u8d28", "\u539a\u5ea6", "\u5c01\u8fb9", "\u65cb\u8f6c", "\u5907\u6ce8"];
   const rows = state.parts.map((item) => [
     item.name,
     item.length,
@@ -2771,7 +3951,7 @@ function exportCutListCsv() {
     alert("\u8bf7\u5148\u81ea\u52a8\u6392\u6599\u3002");
     return;
   }
-  const header = ["\u7f16\u53f7", "\u677f\u53f7", "\u6750\u8d28", "\u539a\u5ea6", "\u540d\u79f0", "\u539f\u59cb\u957f\u5ea6", "\u539f\u59cb\u5bbd\u5ea6", "\u6392\u6599\u5bbd", "\u6392\u6599\u9ad8", "X", "Y", "\u65cb\u8f6c", "\u5c01\u8fb9", "\u5907\u6ce8"];
+  const header = ["\u7f16\u53f7", "\u677f\u53f7", "\u6750\u8d28", "\u539a\u5ea6", "\u540d\u79f0", "\u539f\u59cb\u957f\u5ea6", "\u539f\u59cb\u5bbd\u5ea6", "\u6392\u6599\u5bbd", "\u6392\u6599\u9ad8", "X", "Y", "\u65cb\u8f6c", "\u5b9e\u9645\u65cb\u8f6c", "\u5c01\u8fb9", "\u5907\u6ce8"];
   const rows = state.result.sheets.flatMap((sheet) => sheet.placements.map((item, index) => [
     codeFor(sheet.index, index),
     sheet.index,
@@ -2784,6 +3964,7 @@ function exportCutListCsv() {
     item.height,
     Math.round(item.x),
     Math.round(item.y),
+    item.allowRotate ? text.yes : text.no,
     item.rotated ? text.yes : text.no,
     item.edgeBanding || "",
     item.note || "",
@@ -3005,7 +4186,7 @@ function renderQuoteReport(quote) {
 }
 
 function openImportDialog() {
-  els.csvText.value = "\u540d\u79f0,\u957f\u5ea6,\u5bbd\u5ea6,\u6570\u91cf,\u6750\u8d28,\u539a\u5ea6,\u5c01\u8fb9,\u53ef\u65cb\u8f6c,\u5907\u6ce8\n\u4fa7\u677f,2200,580,2,\u9897\u7c92\u677f,18,\"F,B\",\u5426,\u7eb9\u7406\u7ad6\u5411\n\u5c42\u677f,860,560,4,\u9897\u7c92\u677f,18,F,\u662f,";
+  els.csvText.value = "\u540d\u79f0,\u957f\u5ea6,\u5bbd\u5ea6,\u6570\u91cf,\u6750\u8d28,\u539a\u5ea6,\u5c01\u8fb9,\u65cb\u8f6c,\u5907\u6ce8\n\u4fa7\u677f,2200,580,2,\u9897\u7c92\u677f,18,\"F,B\",\u5426,\u7eb9\u7406\u7ad6\u5411\n\u5c42\u677f,860,560,4,\u9897\u7c92\u677f,18,F,\u662f,";
   els.csvDialog.showModal();
 }
 
@@ -3065,7 +4246,7 @@ function importProjectJson() {
 }
 
 function parseYes(value) {
-  return ["\u662f", "true", "1", "yes", "y"].includes(String(value || "").trim().toLowerCase());
+  return parseBoolean(value);
 }
 
 function toCsv(rows) {
